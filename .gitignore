@@ -1,0 +1,6 @@
+**/bin/
+**/obj/
+*.user
+data/incoming/
+sample.dcm
+test-study/
