@@ -61,6 +61,7 @@ type StudyManifest struct {
 	StudyDescription string          `json:"studyDescription"`
 	Modality         string          `json:"modality"`
 	StudyDate        string          `json:"studyDate"`
+	TotalImages      int             `json:"totalImages"`
 	Series           []Series        `json:"series"`
 }
 type ManifestPatient struct {

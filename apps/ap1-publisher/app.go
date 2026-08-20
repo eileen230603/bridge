@@ -11,6 +11,7 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 )
@@ -39,9 +40,23 @@ func NewApp() (*App, error) {
 	os.MkdirAll("../../runtime/logs", 0755)
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
 	repo := adapters.MockStudyRepository{}
-	publisher := &adapters.MockEpsonPublisher{StagingDirectory: filepath.Join(cfg.TemporaryDirectory, "epson-staging"), HotFolder: cfg.EpsonHotFolder, Logger: logger}
+	publisher, e := selectPublisher(cfg, logger)
+	if e != nil {
+		return nil, e
+	}
 	builder := &services.StudyPackageBuilder{Repository: repo, TempRoot: cfg.TemporaryDirectory, ViewerSource: filepath.Join("..", "ap2-viewer", "build", "bin", "Portable DICOM Viewer.exe"), Logger: logger}
 	return &App{cfg: cfg, repo: repo, publisher: publisher, builder: builder, logger: logger, studies: map[string]models.Study{}}, nil
+}
+
+func selectPublisher(cfg config.Config, logger *slog.Logger) (adapters.EpsonPublisher, error) {
+	switch strings.ToLower(strings.TrimSpace(cfg.Publisher)) {
+	case "mock":
+		return &adapters.MockEpsonPublisher{StagingDirectory: cfg.Epson.StagingDirectory, HotFolder: cfg.MockHotFolder, Logger: logger}, nil
+	case "tdbridge":
+		return &adapters.TdBridgePublisher{MonitoringFolder: cfg.Epson.MonitoringFolder, StagingDirectory: cfg.Epson.StagingDirectory, Logger: logger}, nil
+	default:
+		return nil, fmt.Errorf("unsupported publisher %q (expected mock or tdbridge)", cfg.Publisher)
+	}
 }
 func (a *App) startup(ctx context.Context) {
 	a.ctx = ctx
@@ -88,11 +103,10 @@ func (a *App) CreateDiscJob(uid string) (models.DiscJob, error) {
 		return a.fail(job, e)
 	}
 	job.EpsonJobPath = path
-	job.Status = models.QueuedForEpson
 	if e = a.publisher.SubmitJob(a.ctx, path); e != nil {
 		return a.fail(job, e)
 	}
-	job.Status = models.Publishing
+	job.Status = models.QueuedForEpson
 	job.UpdatedAt = time.Now()
 	if job.CreatedAt.IsZero() {
 		job.CreatedAt = job.UpdatedAt

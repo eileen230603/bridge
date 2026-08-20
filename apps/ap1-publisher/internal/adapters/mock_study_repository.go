@@ -13,7 +13,7 @@ type MockStudyRepository struct{}
 
 func (MockStudyRepository) SearchStudies(_ context.Context, from, to time.Time) ([]models.Study, error) {
 	studies := []models.Study{
-		{StudyInstanceUID: "1.2.840.10008.20260820.1", PatientID: "P-1001", PatientName: "María Pérez", StudyDescription: "Tórax", StudyDate: "2026-08-20", Modality: "CT", SeriesCount: 3, InstanceCount: 295},
+		{StudyInstanceUID: "1.2.840.10008.20260820.1", PatientID: "P-1001", PatientName: "EILEEN BALDERRAMA", StudyDescription: "Tórax", StudyDate: "2026-08-20", Modality: "CT", SeriesCount: 3, InstanceCount: 295},
 		{StudyInstanceUID: "1.2.840.10008.20260820.2", PatientID: "P-1002", PatientName: "Juan López", StudyDescription: "Cerebro", StudyDate: "2026-08-20", Modality: "MR", SeriesCount: 4, InstanceCount: 182},
 		{StudyInstanceUID: "1.2.840.10008.20260819.3", PatientID: "P-1003", PatientName: "Ana Torres", StudyDescription: "Abdomen", StudyDate: "2026-08-19", Modality: "CT", SeriesCount: 2, InstanceCount: 146},
 		{StudyInstanceUID: "1.2.840.10008.20260818.4", PatientID: "P-1004", PatientName: "Carlos Rojas", StudyDescription: "Rodilla derecha", StudyDate: "2026-08-18", Modality: "MR", SeriesCount: 3, InstanceCount: 96},

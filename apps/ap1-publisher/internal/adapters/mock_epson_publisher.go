@@ -34,6 +34,9 @@ func (m *MockEpsonPublisher) CreateJob(_ context.Context, j models.DiscJob) (str
 }
 func (m *MockEpsonPublisher) SubmitJob(_ context.Context, p string) error {
 	m.Logger.Info("Moving job to Epson hot folder")
+	if err := os.MkdirAll(m.HotFolder, 0755); err != nil {
+		return err
+	}
 	dest := filepath.Join(m.HotFolder, filepath.Base(p))
 	if err := filesystem.MoveFileSafely(p, dest); err != nil {
 		return err

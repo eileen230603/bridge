@@ -1,7 +1,12 @@
 {
   "temporaryDirectory": "../../runtime/temp",
   "completedDirectory": "../../runtime/completed",
-  "epsonHotFolder": "../../runtime/epson-hotfolder",
+  "publisher": "mock",
+  "mockHotFolder": "../../runtime/epson-hotfolder",
+  "epson": {
+    "monitoringFolder": "C:\\EPSON\\TDBridge\\Orders",
+    "stagingDirectory": "../../runtime/epson-staging"
+  },
   "cleanupAfterHours": 4,
   "cleanupEnabled": false
 }

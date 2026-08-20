@@ -7,11 +7,18 @@ import (
 )
 
 type Config struct {
-	TemporaryDirectory string `json:"temporaryDirectory"`
-	CompletedDirectory string `json:"completedDirectory"`
-	EpsonHotFolder     string `json:"epsonHotFolder"`
-	CleanupAfterHours  int    `json:"cleanupAfterHours"`
-	CleanupEnabled     bool   `json:"cleanupEnabled"`
+	TemporaryDirectory string      `json:"temporaryDirectory"`
+	CompletedDirectory string      `json:"completedDirectory"`
+	Publisher          string      `json:"publisher"`
+	MockHotFolder      string      `json:"mockHotFolder"`
+	Epson              EpsonConfig `json:"epson"`
+	CleanupAfterHours  int         `json:"cleanupAfterHours"`
+	CleanupEnabled     bool        `json:"cleanupEnabled"`
+}
+
+type EpsonConfig struct {
+	MonitoringFolder string `json:"monitoringFolder"`
+	StagingDirectory string `json:"stagingDirectory"`
 }
 
 func Load(path string) (Config, error) {
@@ -27,8 +34,19 @@ func Load(path string) (Config, error) {
 	base := filepath.Dir(path)
 	c.TemporaryDirectory = resolve(base, c.TemporaryDirectory)
 	c.CompletedDirectory = resolve(base, c.CompletedDirectory)
-	c.EpsonHotFolder = resolve(base, c.EpsonHotFolder)
+	c.MockHotFolder = resolveOptional(base, c.MockHotFolder)
+	c.Epson.MonitoringFolder = resolveOptional(base, c.Epson.MonitoringFolder)
+	c.Epson.StagingDirectory = resolveOptional(base, c.Epson.StagingDirectory)
+	if c.Publisher == "" {
+		c.Publisher = "mock"
+	}
 	return c, nil
+}
+func resolveOptional(base, p string) string {
+	if p == "" {
+		return ""
+	}
+	return resolve(base, p)
 }
 func resolve(base, p string) string {
 	if filepath.IsAbs(p) {
