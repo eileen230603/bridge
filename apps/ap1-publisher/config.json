@@ -1,0 +1,7 @@
+{
+  "temporaryDirectory": "../../runtime/temp",
+  "completedDirectory": "../../runtime/completed",
+  "epsonHotFolder": "../../runtime/epson-hotfolder",
+  "cleanupAfterHours": 4,
+  "cleanupEnabled": false
+}

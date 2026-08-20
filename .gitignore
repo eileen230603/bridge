@@ -4,3 +4,16 @@
 data/incoming/
 sample.dcm
 test-study/
+node_modules/
+**/frontend/dist/
+**/frontend/wailsjs/
+**/frontend/package.json.md5
+build/bin/
+runtime/temp/*
+!runtime/temp/.gitkeep
+runtime/epson-hotfolder/*
+!runtime/epson-hotfolder/.gitkeep
+runtime/completed/*
+!runtime/completed/.gitkeep
+runtime/logs/*
+!runtime/logs/.gitkeep
