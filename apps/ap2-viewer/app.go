@@ -3,10 +3,13 @@ package main
 import (
 	"context"
 	"encoding/json"
-	"github.com/local/dicom-disc-suite/apps/ap2-viewer/internal/environment"
-	"github.com/local/dicom-disc-suite/shared/models"
 	"os"
 	"path/filepath"
+
+	"encoding/base64"
+
+	"github.com/local/dicom-disc-suite/apps/ap2-viewer/internal/environment"
+	"github.com/local/dicom-disc-suite/shared/models"
 )
 
 type ViewerState struct {
@@ -55,4 +58,24 @@ func (a *App) LoadStudy() ViewerState {
 		}
 	}
 	return state
+}
+// GetDicomFile lee un archivo .dcm de la carpeta data y lo retorna en bytes
+func (a *App) GetDicomFile(filename string) (string, error) {
+    exe, err := os.Executable()
+    if err != nil {
+        return "", err
+    }
+    base := filepath.Dir(exe)
+    if dev := os.Getenv("DICOM_VIEWER_CONTENT_DIR"); dev != "" {
+        base = dev
+    }
+    filePath := filepath.Join(base, "data", filename)
+    
+    bytes, err := os.ReadFile(filePath)
+    if err != nil {
+        return "", err
+    }
+
+    // Convertir el archivo binario a cadena Base64
+    return base64.StdEncoding.EncodeToString(bytes), nil
 }
