@@ -133,6 +133,7 @@ main {
   display: flex; /*nuevo*/
   align-items: center; /*nuevo*/
   justify-content: center; /*nuevo*/
+  cursor: grab ; /*nuevo*/
   /* display: grid;  */
   /* place-items: center; */
 }
@@ -142,6 +143,10 @@ main {
   left: 0;
   width: 100% !important;
   height: 100% !important;
+}
+.viewport.panning {
+  cursor: grabbing !important;
+  user-select: none;
 }
 .cross {
   position: absolute;
@@ -179,6 +184,84 @@ main {
 }
 .placeholder small {
   color: #496170;
+}
+/* Barra de herramientas de Zoom */
+.zoom-toolbar {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(15, 23, 42, 0.85);
+  padding: 4px 8px;
+  border-radius: 6px;
+  border: 1px solid rgba(0, 255, 204, 0.25);
+  z-index: 10;
+  backdrop-filter: blur(4px);
+}
+
+.zoom-toolbar button {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: #00ffcc;
+  width: 28px;
+  height: 28px;
+  border-radius: 4px;
+  font-size: 14px;
+  font-weight: bold;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.zoom-toolbar button:hover {
+  background: rgba(0, 255, 204, 0.2);
+  border-color: #00ffcc;
+}
+
+.zoom-toolbar button.reset-btn {
+  width: auto;
+  padding: 0 8px;
+  font-size: 10px;
+  letter-spacing: 0.5px;
+}
+
+.zoom-toolbar span {
+  font-family: monospace;
+  font-size: 12px;
+  color: #e2e8f0;
+  min-width: 42px;
+  text-align: center;
+}
+/* Divisor para los botones de la barra superior */
+.zoom-toolbar .divider {
+  width: 1px;
+  height: 18px;
+  background: rgba(255, 255, 255, 0.2);
+  margin: 0 4px;
+}
+
+.zoom-toolbar .wl-label {
+  font-size: 11px;
+  font-weight: bold;
+  color: #00ffcc;
+  margin-right: 2px;
+}
+
+.zoom-toolbar button.preset-btn {
+  width: auto;
+  padding: 0 6px;
+  font-size: 10px;
+  letter-spacing: 0.5px;
+}
+
+/* Cursores para interactividad */
+.viewport.wl-dragging {
+  cursor: ns-resize !important;
+  user-select: none;
 }
 footer {
   flex-shrink: 0; /*nuevo*/
