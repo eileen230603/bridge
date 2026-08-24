@@ -54,22 +54,7 @@ func (b *StudyPackageBuilder) Build(ctx context.Context, study models.Study) (mo
 			os.WriteFile(filepath.Join(now.ViewerPath, "README.txt"), []byte("AP2 executable will be copied here after its production build.\n"), 0644)
 		}
 	}
-	manifest := models.StudyManifest{
-		StudyID:          study.StudyID,
-		ESTUID:           study.StudyInstanceUID,
-		StudyInstanceUID: study.StudyInstanceUID,
-		PatientID:        study.PatientID,
-		PatientName:      study.PatientName,
-		Patient: models.ManifestPatient{
-			ID:   study.PatientID,
-			Name: study.PatientName,
-		},
-		StudyDescription: study.StudyDescription,
-		Modality:         study.Modality,
-		StudyDate:        study.StudyDate,
-		TotalImages:      study.InstanceCount,
-		Series:           study.Series,
-	}
+	manifest := MapSymphonyStudyToViewerStudy(study)
 	raw, err := json.MarshalIndent(manifest, "", "  ")
 	if err != nil {
 		return now, err

@@ -41,7 +41,7 @@ func TestBuildURL(t *testing.T) {
 }
 
 func TestHTTPStudyRepositoryMapsRealResponse(t *testing.T) {
-	response := `[{"ID":15491,"FECHA":20251231,"NOMBRE":"PEREZ^MARIA","SEXO":"F","PAS_ID":"10095 PELVIS C/C","PAS_BD":"19750410","EST_UID":"e57702f0-85ab520a-bb7c7c37-2c72599c-c96c176c","INFORM":"","SERIES":[{"SER_UID":1,"SER_ID":"series-uuid","MODALIDAD":"MR","NOMBRE":"T2","FILES":[{"POS":1,"INS_UID":"instance-uuid","AE":"DEV1"}]},{"SER_UID":2,"SER_ID":"series-2","MODALIDAD":"CT","NOMBRE":"LOCALIZER","FILES":[{"POS":1,"INS_UID":"instance-2","AE":"DEV1"}]}]}]`
+	response := `[{"ID":15491,"FECHA":20251231,"NOMBRE":"PEREZ^MARIA","SEXO":"F","PAS_ID":"10095 PELVIS C/C","PAS_BD":"19750410","PAS_AGE":"050Y","EST_UID":"e57702f0-85ab520a-bb7c7c37-2c72599c-c96c176c","INFORM":"","SERIES":[{"SER_UID":1,"SER_ID":"series-uuid","MODALIDAD":"MR","NOMBRE":"T2","FILES":[{"POS":1,"INS_UID":"instance-uuid","AE":"DEV1"}]},{"SER_UID":2,"SER_ID":"series-2","MODALIDAD":"CT","NOMBRE":"LOCALIZER","FILES":[{"POS":1,"INS_UID":"instance-2","AE":"DEV1"}]}]}]`
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte(response))
@@ -57,7 +57,7 @@ func TestHTTPStudyRepositoryMapsRealResponse(t *testing.T) {
 		t.Fatalf("got %d studies", len(studies))
 	}
 	s := studies[0]
-	if s.StudyID != 15491 || s.PatientName != "PEREZ MARIA" || s.PatientID != "" || s.StudyDescription != "10095 PELVIS C/C" || s.StudyDate != "2025-12-31" || s.Modality != "MR" || s.SeriesCount != 2 || s.InstanceCount != 2 {
+	if s.StudyID != 15491 || s.PatientName != "PEREZ MARIA" || s.SourcePatientName != "PEREZ^MARIA" || s.PatientID != "10095 PELVIS C/C" || s.PatientBirthDate != "19750410" || s.PatientAge != "050Y" || s.PatientSex != "F" || s.StudyDescription != "T2" || s.StudyDate != "2025-12-31" || s.Modality != "MR" || s.SeriesCount != 2 || s.InstanceCount != 2 {
 		t.Fatalf("unexpected mapping: %+v", s)
 	}
 	if s.StudyInstanceUID != "e57702f0-85ab520a-bb7c7c37-2c72599c-c96c176c" {
