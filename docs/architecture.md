@@ -4,7 +4,7 @@ DicomDiscSuite añade dos ejecutables Wails independientes al prototipo .NET exi
 
 ## AP1 — Publisher
 
-La UI invoca métodos del `App` enlazado por Wails. `StudyRepository` aísla el mecanismo de consulta/recuperación médica y `EpsonPublisher` aísla la creación y entrega de trabajos. Las implementaciones actuales son mocks. `StudyPackageBuilder` crea `data/`, `AP2/`, `label/` y `study.json` bajo una carpeta temporal por Study Instance UID.
+La UI invoca métodos del `App` enlazado por Wails. `PacsStudyRepository` ejecuta C-ECHO, C-FIND Study Root y C-MOVE mediante `github.com/amrshadid/go-dicom`; su Storage SCP recibe C-STORE en el puerto configurado. `TdBridgePublisher` crea y entrega el JDF real. `StudyPackageBuilder` crea `data/`, `AP2/`, `label/` y `study.json` bajo una carpeta temporal por Study Instance UID.
 
 La entrega Epson se prepara fuera del Hot Folder. El archivo se escribe y se cierra por completo antes de `SubmitJob`. Se intenta un `rename` atómico; si origen y destino están en volúmenes distintos, se copia a un nombre `.part`, se sincroniza, se cierra y sólo entonces se renombra al nombre visible final.
 

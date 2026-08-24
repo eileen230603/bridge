@@ -9,6 +9,7 @@ type Patient struct {
 	Sex         string `json:"sex"`
 }
 type Study struct {
+	StudyID          int      `json:"studyId"`
 	StudyInstanceUID string   `json:"studyInstanceUID"`
 	PatientID        string   `json:"patientId"`
 	PatientName      string   `json:"patientName"`
@@ -20,11 +21,19 @@ type Study struct {
 	Series           []Series `json:"series,omitempty"`
 }
 type Series struct {
-	SeriesInstanceUID string `json:"seriesInstanceUID"`
-	SeriesNumber      int    `json:"seriesNumber"`
-	SeriesDescription string `json:"description"`
-	Modality          string `json:"modality"`
-	InstanceCount     int    `json:"instanceCount"`
+	SeriesID          string      `json:"seriesId"`
+	SeriesUID         string      `json:"seriesUid"`
+	SeriesInstanceUID string      `json:"seriesInstanceUID"`
+	SeriesNumber      int         `json:"seriesNumber"`
+	SeriesDescription string      `json:"description"`
+	Modality          string      `json:"modality"`
+	InstanceCount     int         `json:"instanceCount"`
+	Files             []StudyFile `json:"files,omitempty"`
+}
+type StudyFile struct {
+	Position    int    `json:"pos"`
+	InstanceUID string `json:"insUid"`
+	AE          string `json:"ae"`
 }
 type JobStatus string
 
@@ -56,11 +65,16 @@ type DiscJob struct {
 	ErrorMessage     string    `json:"errorMessage,omitempty"`
 }
 type StudyManifest struct {
+	StudyID          int             `json:"studyId"`
+	ESTUID           string          `json:"estUid"`
 	StudyInstanceUID string          `json:"studyInstanceUID"`
+	PatientID        string          `json:"patientId"`
+	PatientName      string          `json:"patientName"`
 	Patient          ManifestPatient `json:"patient"`
 	StudyDescription string          `json:"studyDescription"`
 	Modality         string          `json:"modality"`
 	StudyDate        string          `json:"studyDate"`
+	TotalImages      int             `json:"totalImages"`
 	Series           []Series        `json:"series"`
 }
 type ManifestPatient struct {

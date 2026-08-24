@@ -4,8 +4,19 @@
 2. El usuario selecciona **Grabar CD**.
 3. El repositorio recupera las instancias en `runtime/temp/<StudyInstanceUID>/data`.
 4. `StudyPackageBuilder` prepara el visualizador, manifiesto y directorio de etiqueta.
-5. `EpsonPublisher.CreateJob` crea y cierra el trabajo en staging.
-6. `EpsonPublisher.SubmitJob` lo expone de forma segura en el Hot Folder.
-7. En producción, TD Bridge procesará el trabajo y la PP-100III grabará e imprimirá el disco.
+5. `TdBridgePublisher.CreateJob` valida el paquete y crea en staging un JDF para CD de datos conforme al Technical Reference Guide E/F revisión 22.
+6. `TdBridgePublisher.SubmitJob` copia el archivo como `.tmp`, lo sincroniza y lo renombra a `.jdf` en el Monitoring Folder.
+7. TD Bridge recoge el JDF y solicita la grabación/impresión a un Epson Discproducer compatible.
 
-Los pasos 1, 3, 5, 6 y 7 están simulados en esta etapa. Los `.dcm` generados contienen texto y no son objetos DICOM.
+```text
+AP1
+ -> StudyPackageBuilder
+ -> TdBridgePublisher.CreateJob
+ -> JDF
+ -> TdBridgePublisher.SubmitJob
+ -> Monitoring Folder
+ -> TD Bridge
+ -> Epson Discproducer
+```
+
+AP1 no tiene fallback de simulación. La búsqueda ejecuta C-ECHO y C-FIND reales; la recuperación usa C-MOVE hacia el Storage SCP configurado. Los tests de transporte TD Bridge usan exclusivamente carpetas temporales.

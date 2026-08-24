@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/local/dicom-disc-suite/shared/dicom"
 	"github.com/local/dicom-disc-suite/shared/models"
 	"log/slog"
 	"os"
@@ -13,10 +12,14 @@ import (
 )
 
 type StudyPackageBuilder struct {
-	Repository   dicom.StudyRepository
+	Repository   StudyRetriever
 	TempRoot     string
 	ViewerSource string
 	Logger       *slog.Logger
+}
+
+type StudyRetriever interface {
+	RetrieveStudy(context.Context, string, string) error
 }
 
 func (b *StudyPackageBuilder) Build(ctx context.Context, study models.Study) (models.DiscJob, error) {
@@ -37,9 +40,9 @@ func (b *StudyPackageBuilder) Build(ctx context.Context, study models.Study) (mo
 			return now, err
 		}
 	}
-	b.Logger.Info("Starting mock study retrieval", "study_uid", study.StudyInstanceUID)
+	b.Logger.Info("Starting HTTP study download", "study_uid", study.StudyInstanceUID)
 	if err := b.Repository.RetrieveStudy(ctx, study.StudyInstanceUID, now.DataPath); err != nil {
-		return now, err
+		return now, fmt.Errorf("download study: %w", err)
 	}
 	now.Status = models.Preparing
 	if b.ViewerSource != "" {
@@ -51,7 +54,22 @@ func (b *StudyPackageBuilder) Build(ctx context.Context, study models.Study) (mo
 			os.WriteFile(filepath.Join(now.ViewerPath, "README.txt"), []byte("AP2 executable will be copied here after its production build.\n"), 0644)
 		}
 	}
-	manifest := models.StudyManifest{StudyInstanceUID: study.StudyInstanceUID, Patient: models.ManifestPatient{ID: study.PatientID, Name: study.PatientName}, StudyDescription: study.StudyDescription, Modality: study.Modality, StudyDate: study.StudyDate, Series: study.Series}
+	manifest := models.StudyManifest{
+		StudyID:          study.StudyID,
+		ESTUID:           study.StudyInstanceUID,
+		StudyInstanceUID: study.StudyInstanceUID,
+		PatientID:        study.PatientID,
+		PatientName:      study.PatientName,
+		Patient: models.ManifestPatient{
+			ID:   study.PatientID,
+			Name: study.PatientName,
+		},
+		StudyDescription: study.StudyDescription,
+		Modality:         study.Modality,
+		StudyDate:        study.StudyDate,
+		TotalImages:      study.InstanceCount,
+		Series:           study.Series,
+	}
 	raw, err := json.MarshalIndent(manifest, "", "  ")
 	if err != nil {
 		return now, err
@@ -60,7 +78,9 @@ func (b *StudyPackageBuilder) Build(ctx context.Context, study models.Study) (mo
 		return now, err
 	}
 	b.Logger.Info("Study manifest created", "job_id", now.ID)
-	os.WriteFile(filepath.Join(filepath.Dir(now.LabelPath), "README.txt"), []byte("Label image generation is pending.\n"), 0644)
+	if err = GenerateDiscLabel(now.LabelPath, study); err != nil {
+		return now, fmt.Errorf("generate disc label: %w", err)
+	}
 	now.Status = models.Ready
 	return now, nil
 }

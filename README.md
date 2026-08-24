@@ -6,14 +6,14 @@ Base ejecutable de dos aplicaciones de escritorio Wails + Go + React + TypeScrip
 
 ```text
 apps/
-  ap1-publisher/       AP1: búsqueda, paquete y publicación simulada
+  ap1-publisher/       AP1: consulta PACS, paquete y publicación TD Bridge
     frontend/          React + TypeScript + Vite
     internal/          adapters, configuración y servicios
   ap2-viewer/          AP2: lector portátil independiente
     frontend/          React + TypeScript + Vite
     internal/          validación del entorno
 shared/                modelos, contrato DICOM y filesystem seguro
-runtime/               temp, epson-hotfolder, completed y logs
+runtime/               paquetes temporales, staging Epson, completados y logs
 docs/                  arquitectura, flujo e integraciones pendientes
 src/                   prototipo .NET conservado
 ```
@@ -32,7 +32,13 @@ npm --prefix frontend install
 wails dev
 ```
 
-La configuración está en `config.json`; todas las rutas son configurables. **Grabar CD** crea `runtime/temp/<StudyInstanceUID>/` con `data/`, `AP2/`, `study.json` y `label/`. El trabajo mock se prepara fuera del Hot Folder y se entrega sólo después de cerrarlo.
+La configuración está en `config.json`; todas las rutas y datos de conexión son configurables. **Grabar CD** recupera el estudio por C-MOVE, crea `runtime/temp/<StudyInstanceUID>/` con `data/`, `AP2/`, `study.json` y `label/`, genera el JDF real en staging y lo entrega atómicamente a TD Bridge.
+
+### Antes de instalar en la clínica
+
+Cambiar en `apps/ap1-publisher/config.json` los valores `pacs.host`, `pacs.port`, `pacs.calledAETitle`, `pacs.callingAETitle`, `pacs.moveDestinationAETitle` y `pacs.receivePort` por los datos reales entregados por el administrador PACS. El administrador debe registrar el AE de destino y permitir C-ECHO, C-FIND Study Root, C-MOVE y C-STORE hacia AP1.
+
+La configuración incluida actualmente es una **CONFIGURACIÓN DE DESARROLLO CON ORTHANC LOCAL. CAMBIAR ESTOS VALORES POR LOS DEL PACS REAL DE LA CLÍNICA.**
 
 ## AP2 — Portable DICOM Viewer
 
@@ -53,14 +59,14 @@ En producción busca `data/` y `study.json` junto al ejecutable. Para desarrollo
 
 - Dos aplicaciones Wails independientes y dos interfaces React responsivas.
 - Modelos compartidos y estados de trabajo tipados.
-- `StudyRepository` con cinco estudios mock y recuperación de tres placeholders marcados como no-DICOM.
+- `PacsStudyRepository` con C-ECHO, C-FIND Study Root, C-MOVE y Storage SCP/C-STORE.
 - `StudyPackageBuilder` y generación de `study.json`.
-- `EpsonPublisher` mock con staging y publicación segura al Hot Folder.
+- `TdBridgePublisher` con staging y publicación segura al Monitoring Folder.
 - Configuración JSON, logging estructurado y limpieza configurable en modo dry-run.
 - Descubrimiento de contenido y manifiesto en AP2.
 - `ExecutionEnvironmentValidator` con implementación permisiva de desarrollo.
 
-## Simulado o pendiente
+## Pendiente de instalación
 
 - PACS/RIS, DICOM Query/Retrieve o DICOMweb.
 - Formato Job/SDK/TD Bridge Epson, grabación e impresión física.
@@ -92,3 +98,7 @@ wails build
 ## Prototipo .NET
 
 El receptor de pruebas C-ECHO/C-STORE sigue disponible sin cambios bajo `src/`. Se compila como antes con `dotnet build DicomDiscPublisher.sln`.
+# Configuración del servidor de estudios AP1
+
+ESTA ES LA DIRECCIÓN ACTUAL DEL SERVIDOR DE ESTUDIOS.
+SI CAMBIA EL SERVIDOR, MODIFICAR `studyApi.baseUrl` EN config.json.
