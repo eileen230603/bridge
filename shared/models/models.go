@@ -9,16 +9,20 @@ type Patient struct {
 	Sex         string `json:"sex"`
 }
 type Study struct {
-	StudyID          int      `json:"studyId"`
-	StudyInstanceUID string   `json:"studyInstanceUID"`
-	PatientID        string   `json:"patientId"`
-	PatientName      string   `json:"patientName"`
-	StudyDescription string   `json:"studyDescription"`
-	StudyDate        string   `json:"studyDate"`
-	Modality         string   `json:"modality"`
-	SeriesCount      int      `json:"seriesCount"`
-	InstanceCount    int      `json:"instanceCount"`
-	Series           []Series `json:"series,omitempty"`
+	StudyID           int      `json:"studyId"`
+	StudyInstanceUID  string   `json:"studyInstanceUID"`
+	PatientID         string   `json:"patientId"`
+	PatientName       string   `json:"patientName"`
+	SourcePatientName string   `json:"-"`
+	PatientBirthDate  string   `json:"patientBirthDate,omitempty"`
+	PatientAge        string   `json:"patientAge,omitempty"`
+	PatientSex        string   `json:"patientSex,omitempty"`
+	StudyDescription  string   `json:"studyDescription"`
+	StudyDate         string   `json:"studyDate"`
+	Modality          string   `json:"modality"`
+	SeriesCount       int      `json:"seriesCount"`
+	InstanceCount     int      `json:"instanceCount"`
+	Series            []Series `json:"series,omitempty"`
 }
 type Series struct {
 	SeriesID          string      `json:"seriesId"`

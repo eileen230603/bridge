@@ -231,6 +231,7 @@ type apiStudy struct {
 	Sex             string      `json:"SEXO"`
 	PatientStudy    string      `json:"PAS_ID"`
 	BirthDate       string      `json:"PAS_BD"`
+	PatientAge      string      `json:"PAS_AGE"`
 	ExternalStudyID string      `json:"EST_UID"`
 	Report          string      `json:"INFORM"`
 	Series          []apiSeries `json:"SERIES"`
@@ -252,7 +253,7 @@ func (s apiStudy) study() models.Study {
 	instances := 0
 	seriesModels := make([]models.Series, 0, len(s.Series))
 	modality := ""
-	description := strings.TrimSpace(s.PatientStudy)
+	description := ""
 	for _, series := range s.Series {
 		instances += len(series.Files)
 		if modality == "" {
@@ -273,7 +274,9 @@ func (s apiStudy) study() models.Study {
 	}
 	return models.Study{
 		StudyID: s.ID, StudyInstanceUID: s.ExternalStudyID,
-		PatientName: formatPersonName(s.Name), StudyDescription: description,
+		PatientID: strings.TrimSpace(s.PatientStudy), PatientName: formatPersonName(s.Name),
+		SourcePatientName: strings.TrimSpace(s.Name), PatientBirthDate: strings.TrimSpace(s.BirthDate),
+		PatientAge: strings.TrimSpace(s.PatientAge), PatientSex: strings.TrimSpace(s.Sex), StudyDescription: description,
 		StudyDate: date, Modality: modality, SeriesCount: len(s.Series), InstanceCount: instances, Series: seriesModels,
 	}
 }

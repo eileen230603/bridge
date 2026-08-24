@@ -38,11 +38,11 @@ func TestStudyPackageBuilderCreatesDataAndRealManifest(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	var manifest models.StudyManifest
+	var manifest ViewerStudy
 	if err := json.Unmarshal(raw, &manifest); err != nil {
 		t.Fatal(err)
 	}
-	if manifest.StudyID != 15491 || manifest.ESTUID != "study-uuid" || manifest.TotalImages != 1 || len(manifest.Series) != 1 || len(manifest.Series[0].Files) != 1 || manifest.Series[0].Files[0].Position != 7 {
+	if manifest.ID != "15491" || manifest.StudyInstanceUID != "study-uuid" || len(manifest.Series) != 1 || len(manifest.Series[0].Files) != 1 || manifest.Series[0].Files[0].Position != 7 {
 		t.Fatalf("unexpected manifest: %+v", manifest)
 	}
 }
