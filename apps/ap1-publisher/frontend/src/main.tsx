@@ -17,6 +17,14 @@ type DiscJob = {
   status: string;
   errorMessage?: string;
 };
+type SystemStatus = {
+  studyServer: string;
+  studyApiConfigured: boolean;
+  pacs: string;
+  pacsConfigured: boolean;
+  tdBridge: string;
+  tdBridgeConfigured: boolean;
+};
 
 const api = () => window.go?.main?.App;
 
@@ -29,15 +37,41 @@ function App() {
   const [jobs, setJobs] = React.useState<DiscJob[]>([]);
   const [loading, setLoading] = React.useState(false);
   const [message, setMessage] = React.useState("Listo para buscar estudios");
+  const [status, setStatus] = React.useState<SystemStatus>({
+    studyServer: "No probado",
+    studyApiConfigured: false,
+    pacs: "No probado",
+    pacsConfigured: false,
+    tdBridge: "Error",
+    tdBridgeConfigured: false,
+  });
+  async function refreshStatus() {
+    const value = await api()?.GetSystemStatus();
+    if (value) setStatus(value);
+  }
+  async function testPacs() {
+    setLoading(true);
+    try {
+      await api()?.TestPacsConnection();
+      setMessage("Conexión PACS verificada mediante C-ECHO");
+    } catch (e) {
+      setMessage(String(e));
+    } finally {
+      await refreshStatus();
+      setLoading(false);
+    }
+  }
   async function search() {
     setLoading(true);
     try {
       const x = await api()?.SearchStudies(from, to);
       setStudies(x ?? []);
-      setMessage(`${x?.length ?? 0} estudios encontrados`);
+      setMessage((x?.length ?? 0) === 0 ? "No se encontraron estudios en ese rango." : `${x?.length ?? 0} estudios encontrados`);
     } catch (e) {
+      setStudies([]);
       setMessage(String(e));
     } finally {
+	  await refreshStatus();
       setLoading(false);
     }
   }
@@ -46,7 +80,7 @@ function App() {
     try {
       const j = await api()?.CreateDiscJob(s.studyInstanceUID);
       if (j) setJobs((v) => [j, ...v]);
-      setMessage("Trabajo simulado entregado al Hot Folder");
+      setMessage("Trabajo entregado a TD Bridge");
     } catch (e) {
       setMessage(`Error: ${String(e)}`);
       const x = await api()?.ListJobs();
@@ -54,7 +88,7 @@ function App() {
     }
   }
   React.useEffect(() => {
-    search();
+    refreshStatus();
   }, []);
   return (
     <div className="shell">
@@ -66,12 +100,14 @@ function App() {
             <small>Gestión de medios médicos</small>
           </div>
         </div>
-        <button className="settings">⚙ Configuración</button>
+        <button className="settings" onClick={testPacs} disabled={loading}>
+          Probar conexión PACS
+        </button>
       </header>
       <main>
         <section className="hero">
           <div>
-            <p className="eyebrow">BÚSQUEDA PACS · MODO SIMULACIÓN</p>
+            <p className="eyebrow">BÚSQUEDA HTTP · RECUPERACIÓN DICOM</p>
             <h1>Estudios disponibles</h1>
             <p>
               Seleccione un rango para consultar estudios y preparar su
@@ -84,6 +120,7 @@ function App() {
               <input
                 type="date"
                 value={from}
+                max={to}
                 onChange={(e) => setFrom(e.target.value)}
               />
             </label>
@@ -92,6 +129,7 @@ function App() {
               <input
                 type="date"
                 value={to}
+                min={from}
                 onChange={(e) => setTo(e.target.value)}
               />
             </label>
@@ -99,6 +137,21 @@ function App() {
               {loading ? "Buscando…" : "Buscar estudios"}
             </button>
           </div>
+        </section>
+        <section className="systemStatus">
+          <span className={status.studyServer === "Conectado" ? "ok" : "bad"}>
+            Servidor de estudios: {status.studyServer}
+          </span>
+          <span className={status.pacs === "Conectado" ? "ok" : "bad"}>
+            DICOM: {status.pacs}
+          </span>
+          <span className={status.tdBridgeConfigured ? "ok" : "bad"}>
+            TD Bridge: {status.tdBridge}
+          </span>
+          {!status.pacsConfigured && (
+            <strong>DICOM no configurado. Revise config.json.</strong>
+          )}
+		  {!status.studyApiConfigured && <strong>Servidor de estudios no configurado. Revise config.json.</strong>}
         </section>
         <section className="panel">
           <div className="panelTitle">
@@ -115,7 +168,7 @@ function App() {
               <span></span>
             </div>
             {studies.map((s) => (
-              <div className="tr" key={s.studyInstanceUID}>
+              <div className="tr" key={`${s.studyInstanceUID}-${s.patientName}-${s.studyDate}-${s.studyDescription}`}>
                 <span className="patient">{s.patientName}</span>
                 <span>
                   {new Date(s.studyDate + "T00:00").toLocaleDateString("es")}
@@ -126,7 +179,7 @@ function App() {
                 <span>{s.studyDescription}</span>
                 <span>{s.instanceCount}</span>
                 <span>
-                  <button className="action" onClick={() => publish(s)}>
+                  <button className="action" onClick={() => publish(s)} disabled={!s.studyInstanceUID} title={!s.studyInstanceUID ? "El servidor no proporcionó un StudyInstanceUID DICOM" : undefined}>
                     Grabar CD
                   </button>
                 </span>
@@ -167,6 +220,7 @@ function label(s: string) {
         Ready: "Listo",
         QueuedForEpson: "Enviado a Epson",
         Publishing: "Enviado a Epson",
+        Completed: "Completado",
         Failed: "Error",
       } as Record<string, string>
     )[s] ?? s

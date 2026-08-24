@@ -17,13 +17,50 @@ import (
 type TdBridgePublisher struct {
 	MonitoringFolder string
 	StagingDirectory string
+	DefaultCopies    int
 	Logger           *slog.Logger
 }
 
-// BuildJDF is separate from transport. The exact TD Bridge 10.0.1.0 JDF
-// specification is not present in this repository, so no guessed job is emitted.
-func BuildJDF(_ models.DiscJob) ([]byte, error) {
-	return nil, errors.New("TD Bridge JDF generation is not implemented: the exact TD Bridge 10.0.1.0 Job Description File specification is required")
+// BuildJDF implements the data-CD subset documented in TD Bridge Technical
+// Reference Guide E/F revision 22, pages 48-67. Each DATA source is mapped
+// explicitly so label/ and AP1 internals are not recorded on the disc.
+func BuildJDF(job models.DiscJob, requestedCopies ...int) ([]byte, error) {
+	if err := validateStudyPackage(job); err != nil {
+		return nil, err
+	}
+	if !validJobID(job.ID) {
+		return nil, errors.New("TD Bridge JOB_ID must be 1-40 characters using only letters, numbers, '-' or '_'")
+	}
+	copies := 1
+	if len(requestedCopies) > 0 {
+		copies = requestedCopies[0]
+	}
+	if copies < 1 || copies > 1000 {
+		return nil, errors.New("TD Bridge COPIES must be between 1 and 1000")
+	}
+	paths := []string{job.DataPath, job.ViewerPath, job.ManifestPath}
+	for _, path := range paths {
+		if strings.ContainsAny(path, "\r\n\t") {
+			return nil, errors.New("TD Bridge paths cannot contain tabs or line breaks")
+		}
+	}
+	var out strings.Builder
+	fmt.Fprintf(&out, "JOB_ID=%s\r\n", job.ID)
+	fmt.Fprintf(&out, "COPIES=%d\r\n", copies)
+	out.WriteString("DISC_TYPE=CD\r\nFORMAT=JOLIET\r\n")
+	fmt.Fprintf(&out, "DATA=%s\tdata\r\n", job.DataPath)
+	fmt.Fprintf(&out, "DATA=%s\tAP2\r\n", job.ViewerPath)
+	fmt.Fprintf(&out, "DATA=%s\tstudy.json\r\n", job.ManifestPath)
+	if job.LabelPath != "" {
+		if info, err := os.Stat(job.LabelPath); err != nil || info.IsDir() {
+			return nil, errors.New("label.png does not exist")
+		}
+		if strings.ContainsAny(job.LabelPath, "\r\n\t") {
+			return nil, errors.New("TD Bridge label path cannot contain tabs or line breaks")
+		}
+		fmt.Fprintf(&out, "LABEL=%s\r\n", job.LabelPath)
+	}
+	return []byte(out.String()), nil
 }
 
 func (p *TdBridgePublisher) CreateJob(ctx context.Context, job models.DiscJob) (string, error) {
@@ -40,7 +77,11 @@ func (p *TdBridgePublisher) CreateJob(ctx context.Context, job models.DiscJob) (
 	if err := os.MkdirAll(p.StagingDirectory, 0o755); err != nil {
 		return "", fmt.Errorf("create TD Bridge staging directory: %w", err)
 	}
-	raw, err := BuildJDF(job)
+	copies := p.DefaultCopies
+	if copies == 0 {
+		copies = 1
+	}
+	raw, err := BuildJDF(job, copies)
 	if err != nil {
 		return "", err
 	}
@@ -50,6 +91,18 @@ func (p *TdBridgePublisher) CreateJob(ctx context.Context, job models.DiscJob) (
 	}
 	p.logger().Info("[EPSON] JDF staged")
 	return path, nil
+}
+
+func validJobID(id string) bool {
+	if len(id) == 0 || len(id) > 40 {
+		return false
+	}
+	for _, r := range id {
+		if !((r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') || r == '-' || r == '_') {
+			return false
+		}
+	}
+	return true
 }
 
 func (p *TdBridgePublisher) SubmitJob(ctx context.Context, jobFile string) error {
@@ -144,7 +197,12 @@ func copyFileSynced(src, dst string) (err error) {
 	if err != nil {
 		return fmt.Errorf("create temporary JDF in monitoring folder: %w", err)
 	}
-	defer func() { _ = out.Close(); if err != nil { _ = os.Remove(dst) } }()
+	defer func() {
+		_ = out.Close()
+		if err != nil {
+			_ = os.Remove(dst)
+		}
+	}()
 	if _, err = io.Copy(out, in); err != nil {
 		return fmt.Errorf("copy JDF: %w", err)
 	}
@@ -162,7 +220,12 @@ func writeSyncedFile(path string, data []byte) (err error) {
 	if err != nil {
 		return err
 	}
-	defer func() { _ = f.Close(); if err != nil { _ = os.Remove(path) } }()
+	defer func() {
+		_ = f.Close()
+		if err != nil {
+			_ = os.Remove(path)
+		}
+	}()
 	if _, err = f.Write(data); err != nil {
 		return err
 	}

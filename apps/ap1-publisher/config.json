@@ -1,11 +1,26 @@
 {
   "temporaryDirectory": "../../runtime/temp",
   "completedDirectory": "../../runtime/completed",
-  "publisher": "mock",
-  "mockHotFolder": "../../runtime/epson-hotfolder",
+  "logFile": "../../runtime/logs/ap1.log",
+  "pacs": {
+    "host": "127.0.0.1",
+    "port": 4242,
+    "calledAETitle": "ORTHANC",
+    "callingAETitle": "DICOM_DISC_AP1",
+    "moveDestinationAETitle": "DICOM_DISC_AP1",
+    "receivePort": 11112
+  },
+  "studyApi": {
+    "baseUrl": "http://192.168.0.102:4000",
+    "getStudiesPath": "/getestudios",
+    "downloadStudyPath": "/DescargaEstudio",
+    "timeoutSeconds": 60
+  },
   "epson": {
+    "enabled": true,
     "monitoringFolder": "C:\\EPSON\\TDBridge\\Orders",
-    "stagingDirectory": "../../runtime/epson-staging"
+    "stagingDirectory": "../../runtime/epson-staging",
+    "defaultCopies": 1
   },
   "cleanupAfterHours": 4,
   "cleanupEnabled": false
