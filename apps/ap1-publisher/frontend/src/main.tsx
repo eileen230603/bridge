@@ -1,6 +1,7 @@
 import React from "react";
 import { createRoot } from "react-dom/client";
 import "./style.css";
+import "./jobs.css";
 type Study = {
   studyInstanceUID: string;
   patientName: string;
@@ -14,14 +15,17 @@ type Study = {
 type DiscJob = {
   id: string;
   patientName: string;
+  studyDescription: string;
   status: string;
+  epsonState?: string;
+  errorCode?: string;
+  technicalStatus?: string;
+  detailStatus?: string;
   errorMessage?: string;
 };
 type SystemStatus = {
   studyServer: string;
   studyApiConfigured: boolean;
-  pacs: string;
-  pacsConfigured: boolean;
   tdBridge: string;
   tdBridgeConfigured: boolean;
 };
@@ -40,26 +44,12 @@ function App() {
   const [status, setStatus] = React.useState<SystemStatus>({
     studyServer: "No probado",
     studyApiConfigured: false,
-    pacs: "No probado",
-    pacsConfigured: false,
     tdBridge: "Error",
     tdBridgeConfigured: false,
   });
   async function refreshStatus() {
     const value = await api()?.GetSystemStatus();
     if (value) setStatus(value);
-  }
-  async function testPacs() {
-    setLoading(true);
-    try {
-      await api()?.TestPacsConnection();
-      setMessage("Conexión PACS verificada mediante C-ECHO");
-    } catch (e) {
-      setMessage(String(e));
-    } finally {
-      await refreshStatus();
-      setLoading(false);
-    }
   }
   async function search() {
     setLoading(true);
@@ -89,6 +79,21 @@ function App() {
   }
   React.useEffect(() => {
     refreshStatus();
+    let active = true;
+    const refreshJobs = async () => {
+      try {
+        const value = await api()?.ListJobs();
+        if (active && value) setJobs(value);
+      } catch {
+        // A transient polling error must not hide the last known job state.
+      }
+    };
+    refreshJobs();
+    const timer = window.setInterval(refreshJobs, 2000);
+    return () => {
+      active = false;
+      window.clearInterval(timer);
+    };
   }, []);
   return (
     <div className="shell">
@@ -100,14 +105,11 @@ function App() {
             <small>Gestión de medios médicos</small>
           </div>
         </div>
-        <button className="settings" onClick={testPacs} disabled={loading}>
-          Probar conexión PACS
-        </button>
       </header>
       <main>
         <section className="hero">
           <div>
-            <p className="eyebrow">BÚSQUEDA HTTP · RECUPERACIÓN DICOM</p>
+            <p className="eyebrow">BÚSQUEDA DE ESTUDIOS · SYMPHONY PACS</p>
             <h1>Estudios disponibles</h1>
             <p>
               Seleccione un rango para consultar estudios y preparar su
@@ -142,15 +144,9 @@ function App() {
           <span className={status.studyServer === "Conectado" ? "ok" : "bad"}>
             Servidor de estudios: {status.studyServer}
           </span>
-          <span className={status.pacs === "Conectado" ? "ok" : "bad"}>
-            DICOM: {status.pacs}
-          </span>
           <span className={status.tdBridgeConfigured ? "ok" : "bad"}>
             TD Bridge: {status.tdBridge}
           </span>
-          {!status.pacsConfigured && (
-            <strong>DICOM no configurado. Revise config.json.</strong>
-          )}
 		  {!status.studyApiConfigured && <strong>Servidor de estudios no configurado. Revise config.json.</strong>}
         </section>
         <section className="panel">
@@ -179,7 +175,7 @@ function App() {
                 <span>{s.studyDescription}</span>
                 <span>{s.instanceCount}</span>
                 <span>
-                  <button className="action" onClick={() => publish(s)} disabled={!s.studyInstanceUID} title={!s.studyInstanceUID ? "El servidor no proporcionó un StudyInstanceUID DICOM" : undefined}>
+                  <button className="action" onClick={() => publish(s)} disabled={!s.studyInstanceUID} title={!s.studyInstanceUID ? "El servidor no proporcionó EST_UID" : undefined}>
                     Grabar CD
                   </button>
                 </span>
@@ -197,15 +193,40 @@ function App() {
               Los trabajos preparados aparecerán aquí.
             </div>
           ) : (
-            jobs.map((j) => (
-              <div className="job" key={j.id}>
-                <span>{j.patientName}</span>
-                <b>{label(j.status)}</b>
-                <div className="progress">
-                  <i />
-                </div>
+            <div className="jobList">
+              <div className="job jobHeader">
+                <span>Paciente</span>
+                <span>Estudio</span>
+                <span>Job</span>
+                <span>Estado</span>
               </div>
-            ))
+              {jobs.map((j) => (
+                <div className="job" key={j.id}>
+                  <span>{j.patientName}</span>
+                  <span>{j.studyDescription}</span>
+                  <code>{j.id}</code>
+                  <span>
+                    <b className={`jobBadge status-${j.status}`}>
+                      {label(j.status)}
+                    </b>
+                    {j.status === "Failed" && j.errorMessage && (
+                      <>
+                        <small className="friendlyError">{j.errorMessage}</small>
+                        <details>
+                          <summary>Ver detalle</summary>
+                          <small>
+                            {j.errorCode && <>Código: {j.errorCode}<br /></>}
+                            {j.technicalStatus && <>Estado TD Bridge: {j.technicalStatus}<br /></>}
+                            {j.detailStatus && <>Detalle: {j.detailStatus}<br /></>}
+                            Mensaje: {j.errorMessage}
+                          </small>
+                        </details>
+                      </>
+                    )}
+                  </span>
+                </div>
+              ))}
+            </div>
           )}
         </section>
       </main>
@@ -219,6 +240,7 @@ function label(s: string) {
         Preparing: "Preparando",
         Ready: "Listo",
         QueuedForEpson: "Enviado a Epson",
+        Processing: "Procesando",
         Publishing: "Enviado a Epson",
         Completed: "Completado",
         Failed: "Error",

@@ -7,7 +7,6 @@ import (
 	"github.com/local/dicom-disc-suite/apps/ap1-publisher/internal/adapters"
 	"github.com/local/dicom-disc-suite/apps/ap1-publisher/internal/config"
 	"github.com/local/dicom-disc-suite/apps/ap1-publisher/internal/services"
-	"github.com/local/dicom-disc-suite/shared/dicom"
 	"github.com/local/dicom-disc-suite/shared/models"
 	"io"
 	"log/slog"
@@ -21,7 +20,6 @@ import (
 type App struct {
 	ctx              context.Context
 	cfg              config.Config
-	repo             dicom.StudyRepository
 	studyRepo        *adapters.HttpStudyRepository
 	publisher        adapters.EpsonPublisher
 	monitor          adapters.EpsonJobMonitor
@@ -30,15 +28,12 @@ type App struct {
 	mu               sync.RWMutex
 	studies          map[string]models.Study
 	jobs             []models.DiscJob
-	pacsState        string
 	studyServerState string
 }
 
 type SystemStatus struct {
 	StudyServer        string `json:"studyServer"`
 	StudyAPIConfigured bool   `json:"studyApiConfigured"`
-	PACS               string `json:"pacs"`
-	PACSConfigured     bool   `json:"pacsConfigured"`
 	TDbridge           string `json:"tdBridge"`
 	TDbridgeConfigured bool   `json:"tdBridgeConfigured"`
 }
@@ -67,7 +62,6 @@ func NewApp() (*App, error) {
 		logOutput = io.MultiWriter(os.Stdout, logFile)
 	}
 	logger := slog.New(slog.NewJSONHandler(logOutput, nil))
-	repo := adapters.NewPacsStudyRepository(cfg.PACS, logger)
 	studyRepo := adapters.NewHttpStudyRepository(cfg.StudyAPI)
 	if !cfg.Epson.Enabled {
 		return nil, fmt.Errorf("TD Bridge está deshabilitado en la configuración")
@@ -75,53 +69,19 @@ func NewApp() (*App, error) {
 	publisher := &adapters.TdBridgePublisher{MonitoringFolder: cfg.Epson.MonitoringFolder, StagingDirectory: cfg.Epson.StagingDirectory, DefaultCopies: cfg.Epson.DefaultCopies, Logger: logger}
 	builder := &services.StudyPackageBuilder{Repository: studyRepo, TempRoot: cfg.TemporaryDirectory, ViewerSource: filepath.Join("..", "ap2-viewer", "build", "bin", "Portable DICOM Viewer.exe"), Logger: logger}
 	monitor := adapters.TdBridgeJobMonitor{MonitoringFolder: cfg.Epson.MonitoringFolder}
-	return &App{cfg: cfg, repo: repo, studyRepo: studyRepo, publisher: publisher, monitor: monitor, builder: builder, logger: logger, studies: map[string]models.Study{}, pacsState: "No probado", studyServerState: "No probado"}, nil
+	return &App{cfg: cfg, studyRepo: studyRepo, publisher: publisher, monitor: monitor, builder: builder, logger: logger, studies: map[string]models.Study{}, studyServerState: "No probado"}, nil
 }
 func (a *App) startup(ctx context.Context) {
 	a.ctx = ctx
 	a.logger.Info("AP1 started")
-	if repo, ok := a.repo.(*adapters.PacsStudyRepository); ok {
-		// The Storage SCP owns its lifetime: it starts with AP1 and is stopped
-		// explicitly by shutdown. Do not bind it to the startup callback context.
-		if e := repo.Start(context.Background()); e != nil {
-			a.mu.Lock()
-			a.pacsState = "Error"
-			a.mu.Unlock()
-			a.logger.Error("Storage SCP failed", "error", e)
-		}
-	}
 	cleanup := services.TempCleanupService{Root: a.cfg.TemporaryDirectory, MaxAge: time.Duration(a.cfg.CleanupAfterHours) * time.Hour, Enabled: a.cfg.CleanupEnabled, Logger: a.logger}
 	if e := cleanup.Scan(); e != nil {
 		a.logger.Error("Cleanup scan failed", "error", e)
 	}
 }
 
-func (a *App) shutdown(_ context.Context) {
-	if repo, ok := a.repo.(*adapters.PacsStudyRepository); ok {
-		_ = repo.Close()
-	}
-}
-
-func (a *App) TestPacsConnection() error {
-	if !a.cfg.PACS.IsConfigured() {
-		return errors.New("PACS no configurado")
-	}
-	if e := a.repo.Echo(a.ctx); e != nil {
-		a.mu.Lock()
-		a.pacsState = "Error"
-		a.mu.Unlock()
-		a.logger.Error("PACS C-ECHO failed", "error", e)
-		return errors.New("No se pudo conectar al PACS.")
-	}
-	a.mu.Lock()
-	a.pacsState = "Conectado"
-	a.mu.Unlock()
-	return nil
-}
-
 func (a *App) GetSystemStatus() SystemStatus {
 	a.mu.RLock()
-	pacsState := a.pacsState
 	studyServerState := a.studyServerState
 	a.mu.RUnlock()
 	tdConfigured := false
@@ -134,7 +94,7 @@ func (a *App) GetSystemStatus() SystemStatus {
 	if tdConfigured {
 		tdState = "Configurado"
 	}
-	return SystemStatus{StudyServer: studyServerState, StudyAPIConfigured: a.cfg.StudyAPI.IsConfigured(), PACS: pacsState, PACSConfigured: a.cfg.PACS.IsConfigured(), TDbridge: tdState, TDbridgeConfigured: tdConfigured}
+	return SystemStatus{StudyServer: studyServerState, StudyAPIConfigured: a.cfg.StudyAPI.IsConfigured(), TDbridge: tdState, TDbridgeConfigured: tdConfigured}
 }
 func (a *App) SearchStudies(from, to string) ([]models.Study, error) {
 	a.mu.Lock()
@@ -226,14 +186,24 @@ func (a *App) ListJobs() []models.DiscJob {
 	defer a.mu.Unlock()
 	if a.monitor != nil {
 		for i := range a.jobs {
-			status, err := a.monitor.GetStatus(a.ctx, a.jobs[i])
+			state, err := a.monitor.GetStatus(a.ctx, a.jobs[i])
 			if err != nil {
 				a.logger.Error("Epson status check failed", "job_id", a.jobs[i].ID, "error", err)
 				continue
 			}
-			if status != a.jobs[i].Status {
-				a.jobs[i].Status = status
+			if state.Status != a.jobs[i].Status || state.Technical != a.jobs[i].EpsonState || state.ErrorCode != a.jobs[i].ErrorCode || state.TechnicalStatus != a.jobs[i].TechnicalStatus || state.DetailStatus != a.jobs[i].DetailStatus || state.ErrorMessage != a.jobs[i].ErrorMessage {
+				previous := a.jobs[i].Status
+				a.jobs[i].Status = state.Status
+				a.jobs[i].EpsonState = state.Technical
+				a.jobs[i].ErrorCode = state.ErrorCode
+				a.jobs[i].TechnicalStatus = state.TechnicalStatus
+				a.jobs[i].DetailStatus = state.DetailStatus
+				a.jobs[i].ErrorMessage = state.ErrorMessage
 				a.jobs[i].UpdatedAt = time.Now()
+				a.logger.Info("[EPSON] Job state changed", "job_id", a.jobs[i].ID, "previous_status", previous, "new_status", state.Status, "technical_state", state.Technical)
+				if state.Status == models.Failed {
+					a.logger.Error("[EPSON] Job failed", "job_id", a.jobs[i].ID, "error_code", state.ErrorCode, "status", state.TechnicalStatus, "detail_status", state.DetailStatus)
+				}
 			}
 		}
 	}

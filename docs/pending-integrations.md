@@ -2,13 +2,11 @@
 
 ## Servidor médico/PACS/RIS
 
-AP1 implementa DICOM clásico: C-ECHO, C-FIND Study Root, C-MOVE y Storage SCP/C-STORE. Falta sustituir los placeholders de `config.json` por los datos reales, registrar el AE de destino en el PACS y validar la declaración de conformidad del PACS, los SOP Classes y transfer syntaxes utilizados por la clínica.
+AP1 usa la API REST real de Symphony PACS para buscar estudios y descargar el ZIP completo. La dirección y rutas se configuran en `studyApi`.
 
 ANTES DE INSTALAR EN LA CLÍNICA:
 
-Cambiar `host`, `port`, `calledAETitle`, `callingAETitle`, `moveDestinationAETitle` y `receivePort` por los datos reales entregados por el administrador PACS.
-
-La configuración actual de `apps/ap1-publisher/config.json` es una **CONFIGURACIÓN DE DESARROLLO CON ORTHANC LOCAL. CAMBIAR ESTOS VALORES POR LOS DEL PACS REAL DE LA CLÍNICA.**
+Confirmar `studyApi.baseUrl`, `/getestudios`, `/DescargaEstudio` y el acceso de red desde la estación AP1.
 
 ## Epson
 
@@ -22,7 +20,7 @@ Pendiente para una instalación real:
 
 - Confirmar permisos de la cuenta del servicio TD Bridge sobre las rutas de contenido y etiqueta.
 - Elegir ajustes locales opcionales (publisher, stackers, área/calidad de impresión) sin fijarlos a un modelo en AP1.
-- Integrar `TdBridgeJobMonitor` en el ciclo de actualización de la UI. El monitor mínimo ya mapea las extensiones oficiales JDF/RJD/INP/STP/DON/ERR; falta exponer errores detallados, discos y tinta mediante STF.
+- El monitoreo durante la ejecución correlaciona cada trabajo por `JOB_ID` y observa JDF/RJD/INP/STP/DON/ERR. Falta persistir trabajos entre reinicios y, si se requiere mayor detalle, interpretar STF para progreso, códigos de dispositivo, discos y tinta.
 - Validar físicamente el soporte, capacidad, impresión y resultado final con Total Disc Maker/TD Bridge instalados.
 
 ## Viewer

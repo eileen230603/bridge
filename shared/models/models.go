@@ -43,6 +43,7 @@ const (
 	Preparing      JobStatus = "Preparing"
 	Ready          JobStatus = "Ready"
 	QueuedForEpson JobStatus = "QueuedForEpson"
+	Processing     JobStatus = "Processing"
 	Publishing     JobStatus = "Publishing"
 	Completed      JobStatus = "Completed"
 	Failed         JobStatus = "Failed"
@@ -53,6 +54,7 @@ type DiscJob struct {
 	StudyInstanceUID string    `json:"studyInstanceUID"`
 	PatientID        string    `json:"patientId"`
 	PatientName      string    `json:"patientName,omitempty"`
+	StudyDescription string    `json:"studyDescription,omitempty"`
 	Status           JobStatus `json:"status"`
 	CreatedAt        time.Time `json:"createdAt"`
 	UpdatedAt        time.Time `json:"updatedAt"`
@@ -62,6 +64,10 @@ type DiscJob struct {
 	ManifestPath     string    `json:"manifestPath"`
 	LabelPath        string    `json:"labelPath"`
 	EpsonJobPath     string    `json:"epsonJobPath"`
+	EpsonState       string    `json:"epsonState,omitempty"`
+	ErrorCode        string    `json:"errorCode,omitempty"`
+	TechnicalStatus  string    `json:"technicalStatus,omitempty"`
+	DetailStatus     string    `json:"detailStatus,omitempty"`
 	ErrorMessage     string    `json:"errorMessage,omitempty"`
 }
 type StudyManifest struct {
