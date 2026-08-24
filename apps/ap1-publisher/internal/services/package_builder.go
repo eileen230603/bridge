@@ -24,7 +24,7 @@ type StudyRetriever interface {
 
 func (b *StudyPackageBuilder) Build(ctx context.Context, study models.Study) (models.DiscJob, error) {
 	created := time.Now()
-	now := models.DiscJob{ID: fmt.Sprintf("job-%d", created.UnixNano()), StudyInstanceUID: study.StudyInstanceUID, PatientID: study.PatientID, PatientName: study.PatientName, Status: models.Downloading, CreatedAt: created, UpdatedAt: created}
+	now := models.DiscJob{ID: fmt.Sprintf("job-%d", created.UnixNano()), StudyInstanceUID: study.StudyInstanceUID, PatientID: study.PatientID, PatientName: study.PatientName, StudyDescription: study.StudyDescription, Status: models.Downloading, CreatedAt: created, UpdatedAt: created}
 	root := filepath.Join(b.TempRoot, study.StudyInstanceUID)
 	now.TempPath = root
 	now.DataPath = filepath.Join(root, "data")
@@ -82,6 +82,7 @@ func (b *StudyPackageBuilder) Build(ctx context.Context, study models.Study) (mo
 		return now, fmt.Errorf("generate disc label: %w", err)
 	}
 	now.Status = models.Ready
+	b.Logger.Info("Study package prepared", "job_id", now.ID)
 	return now, nil
 }
 func copyFile(src, dst string) error {

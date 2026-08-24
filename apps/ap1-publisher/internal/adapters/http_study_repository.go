@@ -219,6 +219,10 @@ func dateNumber(value time.Time) int {
 	return value.Year()*10000 + int(value.Month())*100 + value.Day()
 }
 
+func formatPersonName(value string) string {
+	return strings.Join(strings.Fields(strings.ReplaceAll(strings.TrimSpace(value), "^", " ")), " ")
+}
+
 // These structs reflect the response observed from /getestudios on 2026-08-24.
 type apiStudy struct {
 	ID              int         `json:"ID"`

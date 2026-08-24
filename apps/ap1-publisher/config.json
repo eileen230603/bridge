@@ -2,14 +2,6 @@
   "temporaryDirectory": "../../runtime/temp",
   "completedDirectory": "../../runtime/completed",
   "logFile": "../../runtime/logs/ap1.log",
-  "pacs": {
-    "host": "127.0.0.1",
-    "port": 4242,
-    "calledAETitle": "ORTHANC",
-    "callingAETitle": "DICOM_DISC_AP1",
-    "moveDestinationAETitle": "DICOM_DISC_AP1",
-    "receivePort": 11112
-  },
   "studyApi": {
     "baseUrl": "http://192.168.0.102:4000",
     "getStudiesPath": "/getestudios",

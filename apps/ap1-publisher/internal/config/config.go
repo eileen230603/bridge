@@ -10,7 +10,6 @@ type Config struct {
 	TemporaryDirectory string         `json:"temporaryDirectory"`
 	CompletedDirectory string         `json:"completedDirectory"`
 	LogFile            string         `json:"logFile"`
-	PACS               PACSConfig     `json:"pacs"`
 	StudyAPI           StudyAPIConfig `json:"studyApi"`
 	Epson              EpsonConfig    `json:"epson"`
 	CleanupAfterHours  int            `json:"cleanupAfterHours"`
@@ -26,19 +25,6 @@ type StudyAPIConfig struct {
 
 func (c StudyAPIConfig) IsConfigured() bool {
 	return c.BaseURL != "" && c.GetStudiesPath != "" && c.DownloadStudyPath != ""
-}
-
-type PACSConfig struct {
-	Host                   string `json:"host"`
-	Port                   int    `json:"port"`
-	CalledAETitle          string `json:"calledAETitle"`
-	CallingAETitle         string `json:"callingAETitle"`
-	MoveDestinationAETitle string `json:"moveDestinationAETitle"`
-	ReceivePort            int    `json:"receivePort"`
-}
-
-func (c PACSConfig) IsConfigured() bool {
-	return c.Host != "" && c.Port > 0 && c.Port <= 65535 && c.CalledAETitle != "" && c.CallingAETitle != "" && c.MoveDestinationAETitle != "" && c.ReceivePort > 0 && c.ReceivePort <= 65535
 }
 
 type EpsonConfig struct {
