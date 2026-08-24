@@ -63,7 +63,7 @@ func (a *App) LoadStudy() ViewerState {
         }
     }
 
-    raw, e := os.ReadFile(filepath.Join(base, "study.json"))
+    raw, e := os.ReadFile(filepath.Join(base, "/Users/medicaresoft/Desktop/Practicas/dicomdisc/bridge/runtime/temp/12374e42-3ffcfa9d-a4ba9ed7-713338cf-91608256/study.json"))
     if e == nil {
         var m models.StudyManifest
         if json.Unmarshal(raw, &m) == nil {
