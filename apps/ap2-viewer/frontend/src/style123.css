@@ -1,332 +1,41 @@
+/* Sobreescritura global de variables para WKWebView / Wails */
 :root {
-  font-family: Inter, "Segoe UI", sans-serif;
-  color: #dce8ef;
-  background: #050d15;
-}
-* {
-  box-sizing: border-box;
-}
-body {
-  margin: 0;
-}
-.viewer {
-  display: flex; /*nuevo*/
-  flex-direction: column; /*nuevo*/
-  overflow: hidden; /*nuevo*/
-  width: 100vw; /*nuevo*/
-  height: 100vh;
-  display: grid;
-  grid-template-rows: 64px 1fr 88px;
-}
-header {
-  display: flex;
-  align-items: center;
-  gap: 13px;
-  padding: 0 24px;
-  background: #08131e;
-  border-bottom: 1px solid #20303d;
-  letter-spacing: 0.1em;
-}
-header span {
-  margin-left: auto;
-  font-size: 10px;
-  color: #6f899c;
-}
-.logo {
-  width: 34px;
-  height: 34px;
-  display: grid;
-  place-items: center;
-  border-radius: 8px;
-  background: #0ba999;
-  font-weight: 900;
-}
-.workspace {
-  display: flex; /*nuevo*/
-  flex: 1; /*nuevo*/
-  min-height: 0;
-  overflow: hidden; /*nuevo*/
-  display: grid;
-  grid-template-columns: 245px 1fr;
-}
-aside {
-  background: #0b1722;
-  border-right: 1px solid #263541;
-  padding: 18px 12px;
-  overflow-y: auto; /*nuevo*/
-  flex-shrink: 0; /*nuevo*/
-}
-aside > p {
-  font-size: 10px;
-  letter-spacing: 0.18em;
-  color: #7790a1;
-  padding: 0 10px;
-}
-aside button {
-  width: 100%;
-  border: 0;
-  background: transparent;
-  color: #b9c8d3;
-  padding: 13px 12px;
-  border-radius: 7px;
-  display: flex;
-  justify-content: space-between;
-  text-align: left;
-  margin: 4px 0;
-}
-aside button.active {
-  background: #123742;
-  border-left: 3px solid #18c1ad;
-}
-aside small {
-  display: block;
-  color: #6d889a;
-  margin-top: 4px;
-}
-aside em {
-  font-style: normal;
-  color: #78909f;
-}
-.noSeries {
-  color: #668090;
-  padding: 15px 10px;
-}
-main {
-  flex: 1; /*nuevo*/
-  overflow: hidden; /*nuevo*/
-  display: flex; /*nuevo*/
-  flex-direction: column; /*nuevo*/
-  padding: 20px;
-  background: #030910;
-}
-.overlay-info {
-  position: absolute;
-  top: 12px;
-  right: 12px;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 4px;
-  font-family: monospace;
-  font-size: 11px;
-  color: #00ffcc;
-  background: rgba(0, 0, 0, 0.7);
-  padding: 6px 10px;
-  border-radius: 4px;
-  border: 1px solid rgba(0, 255, 204, 0.2);
-  z-index: 10;
-  pointer-events: none;
+  /* En lugar de dar el Hex sólido, le pasamos RGBA con transparencia integrada al color secundario */
+  --dv-secondary: rgba(230, 57, 70, 0.2) !important;
+  --dv-secondary-foreground: #e63946 !important;
+  --dv-primary: #0a5f8a !important;
 }
 
-.overlay-info span {
-  display: inline-block;
-  margin-right: 8px;
-}
-.viewport {
-  flex: 1; /*nuevo*/
-  width: 100%; /*nuevo*/
-  height: 100%;
-  position: relative;
-  border: 1px solid #24333e;
-  background: radial-gradient(circle at center, #101c25, #050b10 65%);
-  overflow: hidden; /*nuevo*/
-  display: flex; /*nuevo*/
-  align-items: center; /*nuevo*/
-  justify-content: center; /*nuevo*/
-  cursor: grab ; /*nuevo*/
-  /* display: grid;  */
-  /* place-items: center; */
-}
-.viewport canvas {
-  position: absolute !important;
-  top: 0;
-  left: 0;
-  width: 100% !important;
-  height: 100% !important;
-}
-.viewport.panning {
-  cursor: grabbing !important;
-  user-select: none;
-}
-.cross {
-  position: absolute;
-  left: 12px;
-  top: 8px;
-  color: #334a58;
-  z-index: 2; /*nuevo*/
-}
-.placeholder {
-  position: absolute; /*nuevo*/
-  top: 50%; /*nuevo*/
-  left: 50%; /*nuevo*/
-  transform: translate(-50%, -50%); /*nuevo*/
-  text-align: center;
-  color: #718895;
-  z-index: 10; /*nuevo*/
-  pointer-events: none; /*nuevo*/
-  width: 90%; /*nuevo*/
-  max-width: 500px; /*nuevo*/
-}
-.placeholder > div {
-  font-size: 45px;
-  color: #1aa794;
-  margin-bottom: 8px; /*nuevo*/
-}
-.placeholder h2 {
-  font-size: 17px;
-  letter-spacing: 0.16em;
-  color: #9db0bc;
-}
-.placeholder p {
-  text-transform: uppercase;
-  font-size: 11px;
-  letter-spacing: 0.14em;
-}
-.placeholder small {
-  color: #496170;
-}
-/* Barra de herramientas de Zoom */
-.zoom-toolbar {
-  position: absolute;
-  top: 12px;
-  left: 12px;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  background: rgba(15, 23, 42, 0.85);
-  padding: 4px 8px;
-  border-radius: 6px;
-  border: 1px solid rgba(0, 255, 204, 0.25);
-  z-index: 10;
-  backdrop-filter: blur(4px);
+/* Forzar que cualquier botón o elemento activo que tome bg-secondary no quede sólido */
+[data-state="active"] {
+  background-color: rgba(230, 57, 70, 0.15) !important;
+  background: rgba(230, 57, 70, 0.15) !important;
+  border-color: rgba(230, 57, 70, 0.4) !important;
 }
 
-.zoom-toolbar button {
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  color: #00ffcc;
-  width: 28px;
-  height: 28px;
-  border-radius: 4px;
-  font-size: 14px;
-  font-weight: bold;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.2s ease;
+/* Asegurar que el icono SVG interno mantenga su color rojo y no sea tapado */
+[data-state="active"] svg,
+[data-state="active"] * {
+  color: #e63946 !important;
+  fill: currentColor !important;
+  stroke: currentColor !important;
+}
+/* Forzar la anulación de estilos inline en los botones de la barra superior */
+button[data-state="active"],
+div[data-state="active"],
+[class*="bg-secondary"] {
+  background-color: rgba(230, 57, 70, 0.15) !important;
+  background: rgba(230, 57, 70, 0.15) !important;
+  border-color: rgba(230, 57, 70, 0.35) !important;
 }
 
-.zoom-toolbar button:hover {
-  background: rgba(0, 255, 204, 0.2);
-  border-color: #00ffcc;
-}
-
-.zoom-toolbar button.reset-btn {
-  width: auto;
-  padding: 0 8px;
-  font-size: 10px;
-  letter-spacing: 0.5px;
-}
-
-.zoom-toolbar span {
-  font-family: monospace;
-  font-size: 12px;
-  color: #e2e8f0;
-  min-width: 42px;
-  text-align: center;
-}
-/* Divisor para los botones de la barra superior */
-.zoom-toolbar .divider {
-  width: 1px;
-  height: 18px;
-  background: rgba(255, 255, 255, 0.2);
-  margin: 0 4px;
-}
-
-.zoom-toolbar .wl-label {
-  font-size: 11px;
-  font-weight: bold;
-  color: #00ffcc;
-  margin-right: 2px;
-}
-
-.zoom-toolbar button.preset-btn {
-  width: auto;
-  padding: 0 6px;
-  font-size: 10px;
-  letter-spacing: 0.5px;
-}
-
-/* Cursores para interactividad */
-.viewport.wl-dragging {
-  cursor: ns-resize !important;
-  user-select: none;
-}
-footer {
-  flex-shrink: 0; /*nuevo*/
-  display: grid;
-  grid-template-columns: 1.2fr 1fr 0.8fr;
-  align-items: center;
-  background: #0b1722;
-  border-top: 1px solid #263541;
-  padding: 0 26px;
-}
-footer div {
-  display: flex;
-  flex-direction: column;
-  border-right: 1px solid #243541;
-  padding-left: 25px;
-}
-footer div:first-child {
-  padding-left: 0;
-}
-footer div:last-child {
-  border: 0;
-}
-footer small {
-  font-size: 9px;
-  letter-spacing: 0.16em;
-  color: #657f90;
-}
-footer b {
-  font-size: 14px;
-  margin: 5px 0;
-}
-footer span {
-  font-size: 10px;
-  color: #708798;
-}
-.center,
-.missing {
-  height: 100vh;
-  display: grid;
-  place-content: center;
-  text-align: center;
-  color: #78909e;
-}
-.missing h1 {
-  color: #dce8ef;
-  font-size: 24px;
-}
-.missing p {
-  margin: 0 0 20px;
-}
-.missing small {
-  color: #526b7b;
-}
-.disc {
-  font-size: 60px;
-  color: #12ac9c;
-}
-@media (max-width: 800px) {
-  .workspace {
-    grid-template-columns: 190px;
-  }
-  footer {
-    grid-template-columns: 1fr 1fr;
-  }
-  footer div:nth-child(2) {
-    display: none;
-  }
+/* Evitar que el color de fondo tape el SVG interno */
+button[data-state="active"] svg,
+div[data-state="active"] svg {
+  color: #e63946 !important;
+  fill: none !important;
+  stroke: #e63946 !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+  z-index: 10 !important;
 }
