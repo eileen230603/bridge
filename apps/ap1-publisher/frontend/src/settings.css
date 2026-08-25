@@ -1,0 +1,18 @@
+.settings { cursor: pointer; }
+.modalBackdrop { position: fixed; inset: 0; background: #071827a8; display: grid; place-items: center; padding: 24px; z-index: 20; }
+.settingsModal { width: min(460px, 100%); background: #fff; border-radius: 14px; padding: 26px; box-shadow: 0 24px 70px #0005; }
+.settingsModal h2 { font-size: 15px; letter-spacing: .1em; margin: 0 0 22px; }
+.settingsModal > label { display: block; margin: 14px 0; font-size: 12px; color: #526777; font-weight: 700; }
+.settingsModal input, .settingsModal select { display: block; width: 100%; margin-top: 7px; padding: 11px; border: 1px solid #cad5de; border-radius: 7px; background: #fff; color: #183044; }
+.inputSuffix { display: flex; align-items: center; gap: 10px; }
+.inputSuffix input { flex: 1; }
+.inputSuffix span { padding-top: 7px; font-size: 12px; }
+.testButton, .saveButton, .cancelButton { border: 0; border-radius: 7px; padding: 11px 16px; font-weight: 700; cursor: pointer; }
+.testButton, .saveButton { background: #0a897e; color: #fff; }
+.cancelButton { background: #e8eef2; color: #294153; }
+.connectionState { margin: 16px 0; padding: 12px; border-radius: 7px; background: #eef2f5; color: #657581; font-size: 13px; font-weight: 700; }
+.connectionState.connected { background: #dff5ee; color: #08745f; }
+.connectionState.failed { background: #fde7e7; color: #a52b2b; }
+.connectionState small { display: block; margin-top: 6px; }
+.modalActions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 22px; }
+.settingsModal button:disabled { opacity: .55; cursor: default; }

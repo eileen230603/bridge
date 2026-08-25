@@ -13,6 +13,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/local/dicom-disc-suite/apps/ap1-publisher/internal/config"
@@ -34,12 +35,26 @@ func (e HTTPStatusError) Error() string {
 }
 
 type HttpStudyRepository struct {
+	mu     sync.RWMutex
 	config config.StudyAPIConfig
 	client *http.Client
 }
 
 func NewHttpStudyRepository(cfg config.StudyAPIConfig) *HttpStudyRepository {
 	return &HttpStudyRepository{config: cfg, client: &http.Client{Timeout: time.Duration(cfg.TimeoutSeconds) * time.Second}}
+}
+
+func (r *HttpStudyRepository) UpdateConfig(cfg config.ServerConfig) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.config = cfg
+	r.client = &http.Client{Timeout: time.Duration(cfg.TimeoutSeconds) * time.Second}
+}
+
+func (r *HttpStudyRepository) snapshot() (config.ServerConfig, *http.Client) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	return r.config, r.client
 }
 
 func (r *HttpStudyRepository) SearchStudies(ctx context.Context, from, to time.Time) ([]models.Study, error) {
@@ -51,7 +66,8 @@ func (r *HttpStudyRepository) SearchStudies(ctx context.Context, from, to time.T
 	if err != nil {
 		return nil, err
 	}
-	resp, err := r.client.Do(req)
+	_, client := r.snapshot()
+	resp, err := client.Do(req)
 	if err != nil {
 		return nil, ErrStudyServerUnavailable
 	}
@@ -81,11 +97,16 @@ func (r *HttpStudyRepository) SearchStudies(ctx context.Context, from, to time.T
 }
 
 func (r *HttpStudyRepository) buildURL(from, to time.Time) (string, error) {
-	base, err := url.Parse(strings.TrimRight(r.config.BaseURL, "/"))
+	cfg, _ := r.snapshot()
+	baseAddress, err := cfg.BaseAddress()
 	if err != nil {
 		return "", err
 	}
-	path, err := url.Parse("/" + strings.TrimLeft(r.config.GetStudiesPath, "/"))
+	base, err := url.Parse(baseAddress)
+	if err != nil {
+		return "", err
+	}
+	path, err := url.Parse("/getestudios")
 	if err != nil {
 		return "", err
 	}
@@ -113,7 +134,8 @@ func (r *HttpStudyRepository) RetrieveStudy(ctx context.Context, studyUID, desti
 		_ = zipFile.Close()
 		return ErrStudyDownload
 	}
-	resp, err := r.client.Do(req)
+	_, client := r.snapshot()
+	resp, err := client.Do(req)
 	if err != nil {
 		_ = zipFile.Close()
 		return ErrStudyDownload
@@ -140,11 +162,16 @@ func (r *HttpStudyRepository) downloadURL(studyUID string) (string, error) {
 	if strings.TrimSpace(studyUID) == "" {
 		return "", errors.New("empty study UID")
 	}
-	base, err := url.Parse(strings.TrimRight(r.config.BaseURL, "/"))
+	cfg, _ := r.snapshot()
+	baseAddress, err := cfg.BaseAddress()
 	if err != nil {
 		return "", err
 	}
-	path := "/" + strings.Trim(r.config.DownloadStudyPath, "/") + "/" + url.PathEscape(studyUID)
+	base, err := url.Parse(baseAddress)
+	if err != nil {
+		return "", err
+	}
+	path := "/DescargaEstudio/" + url.PathEscape(studyUID)
 	return base.ResolveReference(&url.URL{Path: path}).String(), nil
 }
 
