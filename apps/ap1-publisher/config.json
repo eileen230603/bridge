@@ -3,9 +3,9 @@
   "completedDirectory": "../../runtime/completed",
   "logFile": "../../runtime/logs/ap1.log",
   "studyApi": {
-    "baseUrl": "http://192.168.0.102:4000",
-    "getStudiesPath": "/getestudios",
-    "downloadStudyPath": "/DescargaEstudio",
+    "protocol": "http",
+    "host": "192.168.0.102",
+    "port": 4000,
     "timeoutSeconds": 60
   },
   "epson": {
