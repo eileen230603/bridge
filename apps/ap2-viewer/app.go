@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/local/dicom-disc-suite/apps/ap2-viewer/internal/environment"
 )
@@ -58,63 +59,92 @@ func NewApp(validator environment.ExecutionEnvironmentValidator) *App {
 
 func (a *App) startup(ctx context.Context) { a.ctx = ctx }
 
-func (a *App) getBaseDir() string {
-	if dev := os.Getenv("DICOM_VIEWER_CONTENT_DIR"); dev != "" {
-		return dev
-	}
-	exe, err := os.Executable()
-	if err != nil {
-		return "."
-	}
-	return filepath.Dir(exe)
+func (a *App) resolveStudyPath() (string, string) {
+	exe, _ := os.Executable()
+	workDir, _ := os.Getwd()
+	return resolveStudyPath(os.Getenv("DICOM_VIEWER_CONTENT_DIR"), exe, workDir)
 }
 
-func (a *App) resolveStudyPath() (string, string) {
-	// 1. Si enviamos la ruta manual por variable de entorno
-	if dev := os.Getenv("DICOM_VIEWER_CONTENT_DIR"); dev != "" {
-		return filepath.Join(dev, "study.json"), filepath.Join(dev, "data")
+// resolveStudyPath keeps the viewer portable: it never depends on a user- or
+// operating-system-specific absolute path.
+func resolveStudyPath(contentDir, executable, workDir string) (string, string) {
+	if contentDir != "" {
+		return studyPaths(contentDir)
 	}
 
-	
-	devTempDir := "/Users/medicaresoft/Desktop/Practicas/dicomdisc/bridge/runtime/temp"
+	// On a published disc, study.json and data live beside the viewer executable.
+	if executable != "" {
+		exeDir := filepath.Dir(executable)
+		if isStudyDir(exeDir) {
+			return studyPaths(exeDir)
+		}
+	}
 
-	if info, err := os.Stat(devTempDir); err == nil && info.IsDir() {
-		entries, err := os.ReadDir(devTempDir)
-		if err == nil && len(entries) > 0 {
-			var newestDir string
-			var newestTime int64 = 0
-
-			// Buscar la carpeta de sesión más reciente creada por AP1
-			for _, entry := range entries {
-				if entry.IsDir() {
-					sessionPath := filepath.Join(devTempDir, entry.Name())
-					candidateJson := filepath.Join(sessionPath, "study.json")
-
-					if fileInfo, err := os.Stat(candidateJson); err == nil {
-						if fileInfo.ModTime().UnixNano() > newestTime {
-							newestTime = fileInfo.ModTime().UnixNano()
-							newestDir = sessionPath
-						}
-					}
-				}
+	// During development, locate runtime/temp by walking up from both the
+	// working directory and executable directory. This works on Windows,
+	// macOS and Linux, regardless of where the repository was cloned.
+	starts := []string{workDir}
+	if executable != "" {
+		starts = append(starts, filepath.Dir(executable))
+	}
+	for _, start := range starts {
+		for dir := filepath.Clean(start); dir != ""; dir = filepath.Dir(dir) {
+			if newest := newestStudyDir(filepath.Join(dir, "runtime", "temp")); newest != "" {
+				return studyPaths(newest)
 			}
-
-			if newestDir != "" {
-				
-				return filepath.Join(newestDir, "study.json"), filepath.Join(newestDir, "data")
+			parent := filepath.Dir(dir)
+			if parent == dir {
+				break
 			}
 		}
 	}
 
-	// 3. Fallback en Producción (cuando AP2.exe corre grabado en el CD junto a study.json)
-	base := a.getBaseDir()
-	return filepath.Join(base, "study.json"), filepath.Join(base, "data")
+	// Preserve a useful error path when no study exists.
+	base := workDir
+	if executable != "" {
+		base = filepath.Dir(executable)
+	}
+	return studyPaths(base)
+}
+
+func studyPaths(dir string) (string, string) {
+	return filepath.Join(dir, "study.json"), filepath.Join(dir, "data")
+}
+
+func isStudyDir(dir string) bool {
+	manifest, data := studyPaths(dir)
+	manifestInfo, manifestErr := os.Stat(manifest)
+	dataInfo, dataErr := os.Stat(data)
+	return manifestErr == nil && !manifestInfo.IsDir() && dataErr == nil && dataInfo.IsDir()
+}
+
+func newestStudyDir(tempDir string) string {
+	entries, err := os.ReadDir(tempDir)
+	if err != nil {
+		return ""
+	}
+
+	var newest string
+	var newestTime time.Time
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			continue
+		}
+		candidate := filepath.Join(tempDir, entry.Name())
+		if !isStudyDir(candidate) {
+			continue
+		}
+		info, err := os.Stat(filepath.Join(candidate, "study.json"))
+		if err == nil && (newest == "" || info.ModTime().After(newestTime)) {
+			newest = candidate
+			newestTime = info.ModTime()
+		}
+	}
+	return newest
 }
 
 func (a *App) LoadStudy() ViewerState {
-   
 
-	
 	if e := a.validator.Validate(); e != nil {
 		return ViewerState{Error: e.Error()}
 	}
@@ -124,7 +154,7 @@ func (a *App) LoadStudy() ViewerState {
 
 	info, e := os.Stat(dataPath)
 	if e != nil || !info.IsDir() {
-		return ViewerState{DataPath: dataPath, DataFound: false}
+		return ViewerState{DataPath: dataPath, DataFound: false, Error: fmt.Sprintf("no se encontró el directorio de imágenes DICOM: %s", dataPath)}
 	}
 
 	state := ViewerState{DataFound: true, DataPath: dataPath}
@@ -136,13 +166,17 @@ func (a *App) LoadStudy() ViewerState {
 	}
 
 	raw, e := os.ReadFile(jsonPath)
-	if e == nil {
-		
-		var m ViewerStudy
-		if json.Unmarshal(raw, &m) == nil {
-			state.Manifest = &m
-		}
+	if e != nil {
+		state.Error = fmt.Sprintf("no se pudo leer el manifiesto del estudio %s: %v", jsonPath, e)
+		return state
 	}
+
+	var m ViewerStudy
+	if e = json.Unmarshal(raw, &m); e != nil {
+		state.Error = fmt.Sprintf("el manifiesto del estudio no es válido: %v", e)
+		return state
+	}
+	state.Manifest = &m
 
 	return state
 }

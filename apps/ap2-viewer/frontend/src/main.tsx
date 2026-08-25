@@ -293,7 +293,13 @@ function App({ state }: { state: State }) {
   }, []);
 
   if (!state || !state.manifest) {
-    return <div>Cargando datos del estudio...</div>;
+    return (
+      <div style={{ padding: "24px", color: "#fff", background: "#040d17" }}>
+        <h2>No se pudo cargar el estudio</h2>
+        <p>{state?.error || "No se encontró study.json ni la carpeta data."}</p>
+        {state?.dataPath && <small>Ruta buscada: {state.dataPath}</small>}
+      </div>
+    );
   }
 
   // 6. Formateo del objeto DicomStudy
