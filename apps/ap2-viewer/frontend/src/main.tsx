@@ -7,7 +7,7 @@ import { LoadStudy, GetDicomFile } from "../wailsjs/go/main/App";
 import "./style123.css";
 
 
-// 1. Estructura exacta que genera el backend Go / Eileen (ViewerStudy)
+
 // export interface DicomStudy2 {
 //   id: string;
 //   studyInstanceUid: string;

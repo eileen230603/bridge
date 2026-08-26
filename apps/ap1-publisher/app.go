@@ -10,6 +10,8 @@ import (
 	"github.com/local/dicom-disc-suite/shared/models"
 	"io"
 	"log/slog"
+	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -20,6 +22,7 @@ import (
 type App struct {
 	ctx              context.Context
 	cfg              config.Config
+	configPath       string
 	studyRepo        *adapters.HttpStudyRepository
 	publisher        adapters.EpsonPublisher
 	monitor          adapters.EpsonJobMonitor
@@ -33,9 +36,15 @@ type App struct {
 
 type SystemStatus struct {
 	StudyServer        string `json:"studyServer"`
+	StudyServerAddress string `json:"studyServerAddress"`
 	StudyAPIConfigured bool   `json:"studyApiConfigured"`
 	TDbridge           string `json:"tdBridge"`
 	TDbridgeConfigured bool   `json:"tdBridgeConfigured"`
+}
+
+type ConnectionTestResult struct {
+	Status  string `json:"status"`
+	Message string `json:"message"`
 }
 
 func NewApp() (*App, error) {
@@ -69,7 +78,7 @@ func NewApp() (*App, error) {
 	publisher := &adapters.TdBridgePublisher{MonitoringFolder: cfg.Epson.MonitoringFolder, StagingDirectory: cfg.Epson.StagingDirectory, DefaultCopies: cfg.Epson.DefaultCopies, Logger: logger}
 	builder := &services.StudyPackageBuilder{Repository: studyRepo, TempRoot: cfg.TemporaryDirectory, ViewerSource: filepath.Join("..", "ap2-viewer", "build", "bin", "Portable DICOM Viewer.exe"), Logger: logger}
 	monitor := adapters.TdBridgeJobMonitor{MonitoringFolder: cfg.Epson.MonitoringFolder}
-	return &App{cfg: cfg, studyRepo: studyRepo, publisher: publisher, monitor: monitor, builder: builder, logger: logger, studies: map[string]models.Study{}, studyServerState: "No probado"}, nil
+	return &App{cfg: cfg, configPath: cfgPath, studyRepo: studyRepo, publisher: publisher, monitor: monitor, builder: builder, logger: logger, studies: map[string]models.Study{}, studyServerState: "No probado"}, nil
 }
 func (a *App) startup(ctx context.Context) {
 	a.ctx = ctx
@@ -94,7 +103,75 @@ func (a *App) GetSystemStatus() SystemStatus {
 	if tdConfigured {
 		tdState = "Configurado"
 	}
-	return SystemStatus{StudyServer: studyServerState, StudyAPIConfigured: a.cfg.StudyAPI.IsConfigured(), TDbridge: tdState, TDbridgeConfigured: tdConfigured}
+	a.mu.RLock()
+	serverConfig := a.cfg.StudyAPI
+	a.mu.RUnlock()
+	address := ""
+	if serverConfig.Host != "" {
+		address = fmt.Sprintf("%s:%d", serverConfig.Host, serverConfig.Port)
+	}
+	return SystemStatus{StudyServer: studyServerState, StudyServerAddress: address, StudyAPIConfigured: serverConfig.IsConfigured(), TDbridge: tdState, TDbridgeConfigured: tdConfigured}
+}
+
+func (a *App) GetServerConfig() config.ServerConfig {
+	a.mu.RLock()
+	defer a.mu.RUnlock()
+	return a.cfg.StudyAPI
+}
+
+func (a *App) SaveServerConfig(server config.ServerConfig) error {
+	server.Protocol = strings.ToLower(strings.TrimSpace(server.Protocol))
+	server.Host = strings.TrimSpace(server.Host)
+	if err := server.Validate(); err != nil {
+		return err
+	}
+	a.mu.Lock()
+	updated := a.cfg
+	updated.StudyAPI = server
+	if err := config.Save(a.configPath, updated); err != nil {
+		a.mu.Unlock()
+		return errors.New("No se pudo guardar la configuración.")
+	}
+	a.cfg = updated
+	a.studyServerState = "No probado"
+	a.mu.Unlock()
+	a.studyRepo.UpdateConfig(server)
+	return nil
+}
+
+func (a *App) TestServerConnection(server config.ServerConfig) (result ConnectionTestResult) {
+	defer func() {
+		a.mu.Lock()
+		a.studyServerState = result.Status
+		a.mu.Unlock()
+	}()
+	server.Protocol = strings.ToLower(strings.TrimSpace(server.Protocol))
+	server.Host = strings.TrimSpace(server.Host)
+	base, err := server.BaseAddress()
+	if err != nil {
+		return ConnectionTestResult{Status: "Error", Message: err.Error()}
+	}
+	today := time.Now()
+	endpoint, _ := url.Parse(base + "/getestudios")
+	query := endpoint.Query()
+	query.Set("inicio", today.Format("20060102"))
+	query.Set("final", today.AddDate(0, 0, 1).Format("20060102"))
+	endpoint.RawQuery = query.Encode()
+	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(server.TimeoutSeconds)*time.Second)
+	defer cancel()
+	req, _ := http.NewRequestWithContext(ctx, http.MethodGet, endpoint.String(), nil)
+	resp, err := (&http.Client{Timeout: time.Duration(server.TimeoutSeconds) * time.Second}).Do(req)
+	if err != nil {
+		if errors.Is(err, context.DeadlineExceeded) {
+			return ConnectionTestResult{Status: "Error", Message: "Tiempo de espera agotado."}
+		}
+		return ConnectionTestResult{Status: "Error", Message: "No se pudo conectar al servidor."}
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return ConnectionTestResult{Status: "Error", Message: "No se pudo conectar al servidor."}
+	}
+	return ConnectionTestResult{Status: "Conectado"}
 }
 func (a *App) SearchStudies(from, to string) ([]models.Study, error) {
 	a.mu.Lock()
