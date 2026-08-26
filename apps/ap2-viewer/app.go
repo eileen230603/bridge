@@ -3,8 +3,11 @@ package main
 
 import (
 	"context"
+	"crypto/aes"
+	"crypto/cipher"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -12,6 +15,9 @@ import (
 
 	"github.com/local/dicom-disc-suite/apps/ap2-viewer/internal/environment"
 )
+
+// Clave acordada de 32 bytes (AES-256) compartida con AP1
+var secretKey = []byte("12345678901234567890123456789012")
 
 // Definición de estructuras locales para el manifiesto del visor
 type ViewerFile struct {
@@ -40,6 +46,7 @@ type ViewerStudy struct {
 	StudyDescription *string        `json:"studyDescription"`
 	Series           []ViewerSeries `json:"series"`
 }
+
 type ViewerState struct {
 	DataFound  bool         `json:"dataFound"`
 	DataPath   string       `json:"dataPath"`
@@ -47,6 +54,7 @@ type ViewerState struct {
 	ImageCount int          `json:"imageCount"`
 	Error      string       `json:"error,omitempty"`
 }
+
 type App struct {
 	ctx           context.Context
 	validator     environment.ExecutionEnvironmentValidator
@@ -72,7 +80,7 @@ func resolveStudyPath(contentDir, executable, workDir string) (string, string) {
 		return studyPaths(contentDir)
 	}
 
-	// On a published disc, study.json and data live beside the viewer executable.
+	// On a published disc, study.dat and data live beside the viewer executable.
 	if executable != "" {
 		exeDir := filepath.Dir(executable)
 		if isStudyDir(exeDir) {
@@ -108,7 +116,7 @@ func resolveStudyPath(contentDir, executable, workDir string) (string, string) {
 }
 
 func studyPaths(dir string) (string, string) {
-	return filepath.Join(dir, "study.json"), filepath.Join(dir, "data")
+	return filepath.Join(dir, "study.dat"), filepath.Join(dir, "data")
 }
 
 func isStudyDir(dir string) bool {
@@ -134,7 +142,7 @@ func newestStudyDir(tempDir string) string {
 		if !isStudyDir(candidate) {
 			continue
 		}
-		info, err := os.Stat(filepath.Join(candidate, "study.json"))
+		info, err := os.Stat(filepath.Join(candidate, "study.dat"))
 		if err == nil && (newest == "" || info.ModTime().After(newestTime)) {
 			newest = candidate
 			newestTime = info.ModTime()
@@ -143,37 +151,67 @@ func newestStudyDir(tempDir string) string {
 	return newest
 }
 
+// decryptData descifra los bytes del manifest guardado en study.dat usando AES-GCM
+func decryptData(cipherText []byte, key []byte) ([]byte, error) {
+	block, err := aes.NewCipher(key)
+	if err != nil {
+		return nil, err
+	}
+
+	gcm, err := cipher.NewGCM(block)
+	if err != nil {
+		return nil, err
+	}
+
+	nonceSize := gcm.NonceSize()
+	if len(cipherText) < nonceSize {
+		return nil, errors.New("el archivo study.dat está corrupto o es inválido")
+	}
+
+	nonce, encryptedBytes := cipherText[:nonceSize], cipherText[nonceSize:]
+	return gcm.Open(nil, nonce, encryptedBytes, nil)
+}
+
 func (a *App) LoadStudy() ViewerState {
 
 	if e := a.validator.Validate(); e != nil {
 		return ViewerState{Error: e.Error()}
 	}
 
-	jsonPath, dataPath := a.resolveStudyPath()
-	a.activeDataDir = dataPath
+	dataPath, dataPathDir := a.resolveStudyPath() // dataPath es el archivo study.dat
+	a.activeDataDir = dataPathDir
 
-	info, e := os.Stat(dataPath)
+	info, e := os.Stat(dataPathDir)
 	if e != nil || !info.IsDir() {
-		return ViewerState{DataPath: dataPath, DataFound: false, Error: fmt.Sprintf("no se encontró el directorio de imágenes DICOM: %s", dataPath)}
+		return ViewerState{DataPath: dataPathDir, DataFound: false, Error: fmt.Sprintf("no se encontró el directorio de imágenes DICOM: %s", dataPathDir)}
 	}
 
-	state := ViewerState{DataFound: true, DataPath: dataPath}
-	entries, _ := os.ReadDir(dataPath)
+	state := ViewerState{DataFound: true, DataPath: dataPathDir}
+	entries, _ := os.ReadDir(dataPathDir)
 	for _, x := range entries {
 		if !x.IsDir() {
 			state.ImageCount++
 		}
 	}
 
-	raw, e := os.ReadFile(jsonPath)
+	// 1. Leer los bytes cifrados de study.dat
+	encryptedBytes, e := os.ReadFile(dataPath)
 	if e != nil {
-		state.Error = fmt.Sprintf("no se pudo leer el manifiesto del estudio %s: %v", jsonPath, e)
+		state.Error = fmt.Sprintf("no se pudo leer el archivo de estudio cifrado %s: %v", dataPath, e)
 		return state
 	}
 
+	// 2. Descifrar los bytes en memoria
+	decryptedBytes, e := decryptData(encryptedBytes, secretKey)
+	if e != nil {
+		state.Error = fmt.Sprintf("error al descifrar el manifiesto del estudio %s: %v", dataPath, e)
+		return state
+	}
+
+	// 3. Parsear el JSON recuperado en memoria
 	var m ViewerStudy
-	if e = json.Unmarshal(raw, &m); e != nil {
-		state.Error = fmt.Sprintf("el manifiesto del estudio no es válido: %v", e)
+	if e = json.Unmarshal(decryptedBytes, &m); e != nil {
+		state.Error = fmt.Sprintf("el manifiesto descifrado no es un JSON válido: %v", e)
 		return state
 	}
 	state.Manifest = &m
