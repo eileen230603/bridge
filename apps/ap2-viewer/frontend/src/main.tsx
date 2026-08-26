@@ -93,6 +93,9 @@ function Root() {
 }
 
 function App({ state }: { state: State }) {
+
+  
+
   const [thumbnailUrls, setThumbnailUrls] = useState<Record<string, string>>(
     {},
   );
@@ -318,9 +321,10 @@ function App({ state }: { state: State }) {
       })),
     })),
   };
-
+  
   return (
     <div style={{ width: "100vw", height: "100vh", backgroundColor: "#000" }}>
+   
       <DicomViewer
         study={formattedStudy}
         getDicomFile={handleGetDicomFile}
