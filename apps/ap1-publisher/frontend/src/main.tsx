@@ -3,6 +3,7 @@ import { createRoot } from "react-dom/client";
 import "./style.css";
 import "./jobs.css";
 import "./settings.css";
+import { SplashScreen, StartupError } from "./components/SplashScreen";
 type Study = {
   studyInstanceUID: string;
   patientName: string;
@@ -41,22 +42,20 @@ type ConnectionTestResult = { status: string; message: string };
 
 const api = () => window.go?.main?.App;
 
-function App() {
+const MINIMUM_SPLASH_MS = 4_000;
+const SPLASH_FADE_MS = 200;
+const delay = (milliseconds: number) => new Promise<void>((resolve) => window.setTimeout(resolve, milliseconds));
+
+function App({ initialStatus, initialJobs }: { initialStatus: SystemStatus; initialJobs: DiscJob[] }) {
   const today = new Date().toISOString().slice(0, 10);
   const prior = new Date(Date.now() - 7 * 864e5).toISOString().slice(0, 10);
   const [from, setFrom] = React.useState(prior);
   const [to, setTo] = React.useState(today);
   const [studies, setStudies] = React.useState<Study[]>([]);
-  const [jobs, setJobs] = React.useState<DiscJob[]>([]);
+  const [jobs, setJobs] = React.useState<DiscJob[]>(initialJobs);
   const [loading, setLoading] = React.useState(false);
   const [message, setMessage] = React.useState("Listo para buscar estudios");
-  const [status, setStatus] = React.useState<SystemStatus>({
-    studyServer: "No probado",
-    studyServerAddress: "",
-    studyApiConfigured: false,
-    tdBridge: "Error",
-    tdBridgeConfigured: false,
-  });
+  const [status, setStatus] = React.useState<SystemStatus>(initialStatus);
   const [settingsOpen, setSettingsOpen] = React.useState(false);
   const [serverConfig, setServerConfig] = React.useState<ServerConfig>({
     protocol: "http",
@@ -137,7 +136,6 @@ function App() {
     }
   }
   React.useEffect(() => {
-    refreshStatus();
     let active = true;
     const refreshJobs = async () => {
       try {
@@ -147,7 +145,6 @@ function App() {
         // A transient polling error must not hide the last known job state.
       }
     };
-    refreshJobs();
     const timer = window.setInterval(refreshJobs, 2000);
     return () => {
       active = false;
@@ -155,7 +152,7 @@ function App() {
     };
   }, []);
   return (
-    <div className="shell">
+    <div className="shell appEnter">
       <header>
         <div className="brand">
           <span className="mark">D</span>
@@ -460,4 +457,46 @@ function label(s: string) {
     )[s] ?? s
   );
 }
-createRoot(document.getElementById("root")!).render(<App />);
+function Root() {
+  const [phase, setPhase] = React.useState<"loading" | "exiting" | "ready" | "error">("loading");
+  const [initialData, setInitialData] = React.useState<{ status: SystemStatus; jobs: DiscJob[] } | null>(null);
+  const [error, setError] = React.useState("");
+
+  React.useEffect(() => {
+    let active = true;
+    const initialize = async () => {
+      const initApp = async () => {
+        const backend = api();
+        if (!backend) throw new Error("No hay conexión con el runtime nativo.");
+        const [status, jobs] = await Promise.all([backend.GetSystemStatus(), backend.ListJobs()]);
+        return { status, jobs: jobs ?? [] };
+      };
+      const [outcome] = await Promise.all([
+        initApp().then(
+          (data) => ({ data, failure: "" }),
+          (reason) => ({ data: null, failure: friendlyStartupError(reason) }),
+        ),
+        delay(MINIMUM_SPLASH_MS),
+      ]);
+      if (!active) return;
+      if (outcome.failure || !outcome.data) { setError(outcome.failure || "La inicialización no devolvió datos válidos."); setPhase("error"); return; }
+      setInitialData(outcome.data);
+      setPhase("exiting");
+      await delay(SPLASH_FADE_MS);
+      if (active) setPhase("ready");
+    };
+    initialize();
+    return () => { active = false; };
+  }, []);
+
+  if (phase === "loading" || phase === "exiting") return <SplashScreen exiting={phase === "exiting"} />;
+  if (phase === "error") return <StartupError detail={error} />;
+  return <App initialStatus={initialData!.status} initialJobs={initialData!.jobs} />;
+}
+
+function friendlyStartupError(error: unknown) {
+  const text = error instanceof Error ? error.message : String(error);
+  return text.split("\n")[0] || "Error desconocido durante la inicialización.";
+}
+
+createRoot(document.getElementById("root")!).render(<Root />);

@@ -1,0 +1,389 @@
+.startupScreen {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  width: 100vw;
+  height: 100vh;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  color: #effaff;
+  background: radial-gradient(
+    ellipse at 50% 35%,
+    #0b3950 0,
+    #072435 28%,
+    #061827 56%,
+    #041321 100%
+  );
+  font-family: Inter, "Segoe UI", system-ui, sans-serif;
+  opacity: 1;
+  transform: scale(1);
+  transition:
+    opacity 0.5s ease,
+    transform 0.5s ease;
+}
+.startupScreenExit {
+  opacity: 0;
+  transform: scale(1.012);
+}
+.startupAmbient {
+  position: absolute;
+  left: 50%;
+  top: 37%;
+  width: min(54vw, 700px);
+  height: min(48vw, 540px);
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  background: radial-gradient(
+    circle,
+    rgba(24, 201, 216, 0.15),
+    rgba(24, 142, 190, 0.055) 43%,
+    transparent 70%
+  );
+  filter: blur(18px);
+  animation: ambientBreathe 4.6s ease-in-out infinite;
+}
+.startupContent {
+  position: relative;
+  z-index: 3;
+  display: flex;
+  width: min(84vw, 520px);
+  max-height: 94vh;
+  align-items: center;
+  flex-direction: column;
+  text-align: center;
+}
+.startupLogoGlow {
+  position: absolute;
+  top: 4vh;
+  width: clamp(170px, 18vw, 250px);
+  height: clamp(130px, 16vw, 220px);
+  border-radius: 50%;
+  background: rgba(27, 210, 224, 0.1);
+  filter: blur(45px);
+  animation: logoGlow 4s ease-in-out infinite;
+}
+.startupLogo {
+  position: relative;
+  width: clamp(145px, 15vw, 215px);
+  height: auto;
+  max-height: 30vh;
+  object-fit: contain;
+  filter: drop-shadow(0 0 20px rgba(42, 211, 222, 0.2));
+  animation:
+    logoEnter 0.8s ease-out both,
+    logoFloat 3.8s 0.9s ease-in-out infinite;
+}
+.startupContent h1 {
+  margin: clamp(5px, 1vh, 11px) 0 0;
+  color: #f5fbff;
+  font-size: clamp(29px, 3vw, 42px);
+  font-weight: 520;
+  line-height: 1.05;
+  letter-spacing: -0.025em;
+  text-shadow: 0 0 25px rgba(103, 212, 230, 0.12);
+}
+.startupProduct {
+  margin: 9px 0 0;
+  color: #49d6d4;
+  font-size: clamp(9px, 1vw, 12px);
+  font-weight: 700;
+  letter-spacing: clamp(0.2em, 0.55vw, 0.4em);
+}
+.startupSpinner {
+  width: clamp(42px, 4vw, 51px);
+  height: clamp(42px, 4vw, 51px);
+  margin: clamp(18px, 3vh, 34px) 0 clamp(12px, 2vh, 20px);
+  border: 2px solid rgba(68, 216, 220, 0.13);
+  border-top-color: #53e1df;
+  border-right-color: #20aebf;
+  border-radius: 50%;
+  box-shadow:
+    0 0 18px rgba(47, 211, 218, 0.18),
+    inset 0 0 11px rgba(38, 187, 203, 0.08);
+  animation: spinnerRotate 1s linear infinite;
+}
+.startupTitle {
+  margin: 0;
+  color: #e7f6fb;
+  font-size: clamp(14px, 1.4vw, 17px);
+  font-weight: 520;
+  letter-spacing: 0.02em;
+}
+.startupDetail {
+  min-height: 20px;
+  margin: 7px 0 0;
+  color: #87aab9;
+  font-size: clamp(11px, 1vw, 13px);
+}
+.startupProgress {
+  width: min(72vw, 390px);
+  height: 5px;
+  margin: clamp(17px, 2.6vh, 27px) 0 0;
+  padding: 1px;
+  overflow: visible;
+  border: 1px solid rgba(54, 195, 205, 0.2);
+  border-radius: 999px;
+  background: rgba(2, 14, 25, 0.7);
+  box-shadow: inset 0 0 7px rgba(0, 0, 0, 0.35);
+}
+.startupProgressFill {
+  position: relative;
+  height: 100%;
+  min-width: 3%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #168ead, #35dad4 68%, #8af5ea);
+  box-shadow: 0 0 9px rgba(52, 221, 216, 0.34);
+  transition: width 0.22s linear;
+}
+.startupProgressFill i {
+  position: absolute;
+  right: -2px;
+  top: 50%;
+  width: 7px;
+  height: 7px;
+  transform: translateY(-50%);
+  border-radius: 50%;
+  background: #b3fff6;
+  box-shadow: 0 0 10px 3px rgba(63, 231, 222, 0.55);
+}
+.startupWait {
+  margin: 11px 0 0;
+  color: #4a9aa9;
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+.startupWaves {
+  position: absolute;
+  z-index: 1;
+  left: -5%;
+  bottom: 4%;
+  width: 110%;
+  height: 30vh;
+  opacity: 0.45;
+}
+.startupWaves svg {
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+.wave {
+  fill: none;
+  stroke-linecap: round;
+  stroke-width: 1.25;
+  vector-effect: non-scaling-stroke;
+  stroke-dasharray: 8 12;
+  animation: waveMove 14s linear infinite;
+}
+.waveOne {
+  stroke: #35d9db;
+  opacity: 0.42;
+}
+.waveTwo {
+  stroke: #147da7;
+  opacity: 0.4;
+  animation-duration: 18s;
+  animation-direction: reverse;
+}
+.waveThree {
+  stroke: #65e5df;
+  opacity: 0.2;
+  animation-duration: 22s;
+}
+.startupParticles {
+  position: absolute;
+  z-index: 2;
+  inset: 0;
+  pointer-events: none;
+}
+.startupParticles i {
+  position: absolute;
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: #55dce2;
+  box-shadow: 0 0 8px 2px rgba(55, 211, 220, 0.35);
+  opacity: 0.25;
+  animation: particleDrift 7s ease-in-out infinite;
+}
+.startupParticles i:nth-child(1) {
+  left: 12%;
+  top: 24%;
+}
+.startupParticles i:nth-child(2) {
+  left: 22%;
+  top: 67%;
+  animation-delay: -2s;
+}
+.startupParticles i:nth-child(3) {
+  left: 34%;
+  top: 17%;
+  animation-delay: -4s;
+}
+.startupParticles i:nth-child(4) {
+  left: 45%;
+  top: 79%;
+  animation-delay: -1s;
+}
+.startupParticles i:nth-child(5) {
+  left: 58%;
+  top: 12%;
+  animation-delay: -5s;
+}
+.startupParticles i:nth-child(6) {
+  left: 68%;
+  top: 73%;
+  animation-delay: -3s;
+}
+.startupParticles i:nth-child(7) {
+  left: 82%;
+  top: 28%;
+  animation-delay: -6s;
+}
+.startupParticles i:nth-child(8) {
+  left: 91%;
+  top: 62%;
+  animation-delay: -2.5s;
+}
+.startupParticles i:nth-child(9) {
+  left: 74%;
+  top: 45%;
+  background: #e66b45;
+  box-shadow: 0 0 7px rgba(230, 87, 51, 0.3);
+  animation-delay: -1.5s;
+}
+.startupParticles i:nth-child(10) {
+  left: 27%;
+  top: 48%;
+  background: #e65f3e;
+  box-shadow: 0 0 7px rgba(230, 87, 51, 0.26);
+  animation-delay: -4.5s;
+}
+.startupParticles i:nth-child(11) {
+  left: 51%;
+  top: 61%;
+  animation-delay: -3.5s;
+}
+.startupError .startupLogo {
+  width: 125px;
+}
+.startupErrorLogo {
+  margin-bottom: 24px;
+}
+.startupErrorIcon {
+  display: grid;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  margin-bottom: 17px;
+  border: 1px solid rgba(230, 83, 69, 0.42);
+  border-radius: 50%;
+  color: #ff9885;
+  background: rgba(194, 50, 42, 0.09);
+  font-size: 25px;
+}
+.startupError h1 {
+  font-size: clamp(22px, 2.4vw, 31px);
+}
+.appEnter {
+  animation: appFadeIn 0.5s ease both;
+}
+@keyframes logoEnter {
+  from {
+    opacity: 0;
+    transform: scale(0.92);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+@keyframes logoFloat {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-6px);
+  }
+}
+@keyframes logoGlow {
+  0%,
+  100% {
+    opacity: 0.6;
+    transform: scale(0.95);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.08);
+  }
+}
+@keyframes ambientBreathe {
+  0%,
+  100% {
+    opacity: 0.66;
+    transform: translate(-50%, -50%) scale(0.96);
+  }
+  50% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1.07);
+  }
+}
+@keyframes spinnerRotate {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@keyframes waveMove {
+  to {
+    stroke-dashoffset: -200;
+  }
+}
+@keyframes particleDrift {
+  0%,
+  100% {
+    opacity: 0.12;
+    transform: translate(0, 0) scale(0.8);
+  }
+  50% {
+    opacity: 0.5;
+    transform: translate(8px, -14px) scale(1.15);
+  }
+}
+@keyframes appFadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@media (max-height: 720px) {
+  .startupLogo {
+    width: clamp(125px, 13vw, 170px);
+    max-height: 25vh;
+  }
+  .startupContent h1 {
+    font-size: 28px;
+  }
+  .startupSpinner {
+    margin: 14px 0 10px;
+  }
+  .startupProgress {
+    margin-top: 14px;
+  }
+  .startupWaves {
+    height: 25vh;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .startupAmbient,
+  .startupLogo,
+  .startupSpinner,
+  .wave,
+  .startupParticles i,
+  .appEnter {
+    animation: none;
+  }
+}

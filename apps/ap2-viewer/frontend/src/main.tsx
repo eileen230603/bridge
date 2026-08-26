@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
 // Importar el visor de la librería y sus estilos
-import { DicomViewer, DicomStudy } from "@medicaresoft/dicom-viewer";
+import type { DicomStudy } from "@medicaresoft/dicom-viewer";
 import "@medicaresoft/dicom-viewer/style.css";
 import { LoadStudy, GetDicomFile } from "../wailsjs/go/main/App";
 import "./style123.css";
+import { SplashScreen, StartupError } from "./components/SplashScreen";
 
 
 // 1. Estructura exacta que genera el backend Go / Eileen (ViewerStudy)
@@ -57,42 +58,77 @@ const safeGetDicomFile = async (uidOrFilename: string): Promise<string> => {
   }
   return "";
 };
-function Root() {
-  const [loading, setLoading] = useState(true);
-  const [viewerState, setViewerState] = useState<State | null>(null);
+type StartupState = "loading" | "ready" | "error";
+const MINIMUM_SPLASH_MS = 20_000;
+const SPLASH_FADE_MS = 500;
+const delay = (milliseconds: number) => new Promise<void>((resolve) => window.setTimeout(resolve, milliseconds));
 
-  useEffect(() => {
-    safeLoadStudy()
-      .then((state) => {
-        setViewerState(state);
-      })
-      .catch((err) => {
-        // En lugar de guardar null o romper, guardamos un estado vacío funcional
-        setViewerState({
-          dataFound: false,
-          dataPath: "",
-          imageCount: 0,
-          error: "Sin conexión al runtime nativo Wails",
-          manifest: {
-            id: "N/A",
-            studyInstanceUid: "",
-            patientName: "DESCONECTADO (MODO WEB)",
-            patientId: "N/A",
-            series: [],
-          },
-        });
-      })
-      .finally(() => {
-        setLoading(false);
-      });
-  }, []);
-
-  if (loading) return <div>Cargando...</div>;
-
-  return <App state={viewerState!} />;
+function startupError(state: State): string | null {
+  if (state.error) {
+    const message = state.error.toLowerCase();
+    if (message.includes("directorio") || message.includes("data")) return "No se encontró la carpeta data.";
+    if (message.includes("manifiesto") && message.includes("válido")) return "El archivo del estudio no es válido.";
+    if (message.includes("manifiesto") || message.includes("study.json")) return "No se encontró study.json.";
+    return state.error.split("\n")[0];
+  }
+  if (!state.dataFound) return "No se encontró la carpeta data.";
+  if (!state.manifest || !Array.isArray(state.manifest.series)) return "El archivo del estudio no es válido.";
+  return null;
 }
 
-function App({ state }: { state: State }) {
+function Root() {
+  const [startup, setStartup] = useState<StartupState | "exiting">("loading");
+  const [error, setError] = useState("");
+  const [viewerState, setViewerState] = useState<State | null>(null);
+  const [Viewer, setViewer] = useState<any>(null);
+
+  useEffect(() => {
+    let active = true;
+    const initialize = async () => {
+      const initViewer = async () => {
+        const state = await safeLoadStudy();
+        const detail = startupError(state);
+        if (detail) throw new Error(detail);
+        const module = await import("@medicaresoft/dicom-viewer");
+        return { state, Viewer: module.DicomViewer };
+      };
+      const [outcome] = await Promise.all([
+        initViewer().then(
+          (data) => ({ data, failure: "" }),
+          (reason) => ({ data: null, failure: reason instanceof Error ? reason.message : "Ocurrió un error durante el inicio." }),
+        ),
+        delay(MINIMUM_SPLASH_MS),
+      ]);
+      if (!active) return;
+      if (!outcome.data) {
+        setError(outcome.failure);
+        setStartup("error");
+        return;
+      }
+      try {
+        setViewerState(outcome.data.state);
+        setViewer(() => outcome.data!.Viewer);
+        setStartup("exiting");
+        await delay(SPLASH_FADE_MS);
+        if (!active) return;
+        setStartup("ready");
+      } catch (err) {
+        if (!active) return;
+        setError(err instanceof Error ? err.message : "Ocurrió un error durante el inicio.");
+        setStartup("error");
+      }
+    };
+    initialize();
+    return () => { active = false; };
+  }, []);
+
+  if (startup === "loading" || startup === "exiting") return <SplashScreen exiting={startup === "exiting"} />;
+  if (startup === "error") return <StartupError detail={error} />;
+
+  return <App state={viewerState!} Viewer={Viewer} />;
+}
+
+function App({ state, Viewer }: { state: State; Viewer: any }) {
   const [thumbnailUrls, setThumbnailUrls] = useState<Record<string, string>>(
     {},
   );
@@ -326,8 +362,8 @@ function App({ state }: { state: State }) {
   };
 
   return (
-    <div style={{ width: "100vw", height: "100vh", backgroundColor: "#000" }}>
-      <DicomViewer
+    <div className="viewer-enter" style={{ backgroundColor: "#000" }}>
+      <Viewer
         study={formattedStudy}
         getDicomFile={handleGetDicomFile}
         getThumbnailUrl={handleGetThumbnailUrl}
