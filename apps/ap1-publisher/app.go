@@ -4,10 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/local/dicom-disc-suite/apps/ap1-publisher/internal/adapters"
-	"github.com/local/dicom-disc-suite/apps/ap1-publisher/internal/config"
-	"github.com/local/dicom-disc-suite/apps/ap1-publisher/internal/services"
-	"github.com/local/dicom-disc-suite/shared/models"
 	"io"
 	"log/slog"
 	"net/http"
@@ -17,6 +13,11 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/local/dicom-disc-suite/apps/ap1-publisher/internal/adapters"
+	"github.com/local/dicom-disc-suite/apps/ap1-publisher/internal/config"
+	"github.com/local/dicom-disc-suite/apps/ap1-publisher/internal/services"
+	"github.com/local/dicom-disc-suite/shared/models"
 )
 
 type App struct {
