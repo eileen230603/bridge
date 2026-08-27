@@ -7,6 +7,12 @@
   "frontend:dev:watcher": "npm run dev",
   "frontend:dev:serverUrl": "auto",
   "author": { "name": "DicomDiscSuite" },
-  "devtools": true
-
+  "info": {
+    "productName": "Portable DICOM Viewer",
+    "companyName": "DicomDiscSuite",
+    "productVersion": "1.0.0",
+    "copyright": "Copyright 2026",
+    "comments": "Visor portable DICOM"
+  },
+  "devtools": false
 }
