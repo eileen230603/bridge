@@ -1,0 +1,8 @@
+JOB_ID=job-1787853913987367000
+COPIES=1
+DISC_TYPE=CD
+FORMAT=JOLIET
+DATA=../../runtime/temp/7e3772ea-cd8eb45e-576cdef8-283bc9d7-437fc9fb/data	data
+DATA=../../runtime/temp/7e3772ea-cd8eb45e-576cdef8-283bc9d7-437fc9fb/AP2	AP2
+DATA=../../runtime/temp/7e3772ea-cd8eb45e-576cdef8-283bc9d7-437fc9fb/study.dat	study.json
+LABEL=../../runtime/temp/7e3772ea-cd8eb45e-576cdef8-283bc9d7-437fc9fb/label/label.png

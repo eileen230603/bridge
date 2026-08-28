@@ -2,14 +2,16 @@ import { useEffect, useState } from "react";
 import symphonyLogo from "../assets/logo.png";
 import "./SplashScreen.css";
 
+
+
 const SPLASH_DURATION_MS = 10_000;
 
 function progressMessage(elapsed: number) {
-  if (elapsed >= 9_000) return "Todo listo";
-  if (elapsed >= 7_000) return "Preparando aplicación";
-  if (elapsed >= 4_500) return "Inicializando servicios";
-  if (elapsed >= 2_000) return "Cargando configuración";
-  return "Preparando componentes";
+  if (elapsed >= 4_000) return "Visor listo";
+  if (elapsed >= 3_000) return "Cargando estudio";
+  if (elapsed >= 2_000) return "Inicializando visor DICOM";
+  if (elapsed >= 1_000) return "Preparando imágenes";
+  return "Leyendo estudio";
 }
 
 export function SplashScreen({ exiting = false }: { exiting?: boolean }) {
