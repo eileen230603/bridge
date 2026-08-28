@@ -10,7 +10,7 @@
   },
   "epson": {
     "enabled": true,
-    "monitoringFolder": "../../runtime/epson-orders",
+    "monitoringFolder": "C:\\EPSON\\TDBridge\\Orders",
     "stagingDirectory": "../../runtime/epson-staging",
     "defaultCopies": 1
   },
