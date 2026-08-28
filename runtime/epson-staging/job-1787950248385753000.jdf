@@ -1,0 +1,8 @@
+JOB_ID=job-1787950248385753000
+COPIES=1
+DISC_TYPE=CD
+FORMAT=JOLIET
+DATA=../../runtime/temp/fcd48a27-53fadaee-b8616e52-4496f52e-ec79998d/data	data
+DATA=../../runtime/temp/fcd48a27-53fadaee-b8616e52-4496f52e-ec79998d/AP2	AP2
+DATA=../../runtime/temp/fcd48a27-53fadaee-b8616e52-4496f52e-ec79998d/study.dat	study.json
+LABEL=../../runtime/temp/fcd48a27-53fadaee-b8616e52-4496f52e-ec79998d/label/label.png
