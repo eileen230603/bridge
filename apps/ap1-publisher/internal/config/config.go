@@ -82,21 +82,26 @@ type EpsonConfig struct {
 }
 
 func Load(path string) (Config, error) {
-	var c Config
 	b, e := os.ReadFile(path)
 	if e != nil {
-		return c, e
+		return Config{}, e
 	}
-	e = json.Unmarshal(b, &c)
+	return LoadBytes(b, filepath.Dir(path))
+}
+
+// LoadBytes parses an embedded configuration and resolves its relative paths
+// against baseDir in the same way Load resolves paths beside a config file.
+func LoadBytes(b []byte, baseDir string) (Config, error) {
+	var c Config
+	e := json.Unmarshal(b, &c)
 	if e != nil {
 		return c, e
 	}
-	base := filepath.Dir(path)
-	c.TemporaryDirectory = resolve(base, c.TemporaryDirectory)
-	c.CompletedDirectory = resolve(base, c.CompletedDirectory)
-	c.LogFile = resolveOptional(base, c.LogFile)
-	c.Epson.MonitoringFolder = resolveOptional(base, c.Epson.MonitoringFolder)
-	c.Epson.StagingDirectory = resolveOptional(base, c.Epson.StagingDirectory)
+	c.TemporaryDirectory = resolve(baseDir, c.TemporaryDirectory)
+	c.CompletedDirectory = resolve(baseDir, c.CompletedDirectory)
+	c.LogFile = resolveOptional(baseDir, c.LogFile)
+	c.Epson.MonitoringFolder = resolveOptional(baseDir, c.Epson.MonitoringFolder)
+	c.Epson.StagingDirectory = resolveOptional(baseDir, c.Epson.StagingDirectory)
 	if c.Epson.DefaultCopies == 0 {
 		c.Epson.DefaultCopies = 1
 	}

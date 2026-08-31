@@ -49,16 +49,21 @@ type ConnectionTestResult struct {
 }
 
 func NewApp() (*App, error) {
-	cfgPath := strings.TrimSpace(os.Getenv("AP1_CONFIG"))
-	if cfgPath == "" {
-		cfgPath = "config.json"
-		if _, e := os.Stat(cfgPath); e != nil {
-			cfgPath = filepath.Join("apps", "ap1-publisher", "config.json")
-		}
+	executable, _ := os.Executable()
+	workDir, _ := os.Getwd()
+	cfgPath, found := resolveAP1ConfigPath(strings.TrimSpace(os.Getenv("AP1_CONFIG")), executable, workDir)
+	var cfg config.Config
+	var e error
+	if found {
+		cfg, e = config.Load(cfgPath)
+	} else {
+		// Keep the existing ../../runtime layout relative to the portable EXE.
+		portableBase := filepath.Join(filepath.Dir(executable), "apps", "ap1-publisher")
+		cfg, e = config.LoadBytes(defaultConfig, portableBase)
+		cfgPath = "embedded config.json"
 	}
-	cfg, e := config.Load(cfgPath)
 	if e != nil {
-		return nil, e
+		return nil, fmt.Errorf("load AP1 configuration %q: %w", cfgPath, e)
 	}
 	logOutput := io.Writer(os.Stdout)
 	if cfg.LogFile != "" {
@@ -80,6 +85,28 @@ func NewApp() (*App, error) {
 	builder := &services.StudyPackageBuilder{Repository: studyRepo, TempRoot: cfg.TemporaryDirectory, ViewerBuilds: viewerBuilds, Logger: logger}
 	monitor := adapters.TdBridgeJobMonitor{MonitoringFolder: cfg.Epson.MonitoringFolder}
 	return &App{cfg: cfg, configPath: cfgPath, studyRepo: studyRepo, publisher: publisher, monitor: monitor, builder: builder, logger: logger, studies: map[string]models.Study{}, studyServerState: "No probado"}, nil
+}
+
+func resolveAP1ConfigPath(explicit, executable, workDir string) (string, bool) {
+	if explicit != "" {
+		return filepath.Clean(explicit), true
+	}
+
+	candidates := []string{filepath.Join(workDir, "config.json")}
+	if executable != "" {
+		executableDir := filepath.Dir(executable)
+		candidates = append(candidates,
+			filepath.Join(executableDir, "config.json"),
+			filepath.Join(executableDir, "..", "..", "config.json"),
+		)
+	}
+	candidates = append(candidates, filepath.Join(workDir, "apps", "ap1-publisher", "config.json"))
+	for _, candidate := range candidates {
+		if info, err := os.Stat(candidate); err == nil && !info.IsDir() {
+			return filepath.Clean(candidate), true
+		}
+	}
+	return "", false
 }
 func (a *App) startup(ctx context.Context) {
 	a.ctx = ctx
@@ -222,6 +249,7 @@ func (a *App) CreateDiscJob(uid string) (models.DiscJob, error) {
 	a.logger.Info("Study selected", "study_uid", uid)
 	job, e := a.builder.Build(a.ctx, study)
 	if e != nil {
+		a.logger.Error("Study package preparation failed", "study_uid", uid, "job_id", job.ID, "error", e)
 		if errors.Is(e, adapters.ErrStudyDownload) {
 			e = adapters.ErrStudyDownload
 		} else if !errors.Is(e, adapters.ErrInvalidStudyZIP) && !errors.Is(e, adapters.ErrNoDICOMFiles) {
