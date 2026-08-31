@@ -16,6 +16,7 @@ type Study = {
 
 type DiscJob = {
   id: string;
+  studyInstanceUID: string;
   patientName: string;
   studyDescription: string;
   status: string;
@@ -54,6 +55,12 @@ function App({ initialStatus, initialJobs }: { initialStatus: SystemStatus; init
   const [studies, setStudies] = React.useState<Study[]>([]);
   const [jobs, setJobs] = React.useState<DiscJob[]>(initialJobs);
   const [loading, setLoading] = React.useState(false);
+  const [submittingStudies, setSubmittingStudies] = React.useState<Set<string>>(
+    () => new Set(),
+  );
+  const [pressedStudies, setPressedStudies] = React.useState<Set<string>>(
+    () => new Set(),
+  );
   const [message, setMessage] = React.useState("Listo para buscar estudios");
   const [status, setStatus] = React.useState<SystemStatus>(initialStatus);
   const [settingsOpen, setSettingsOpen] = React.useState(false);
@@ -124,6 +131,16 @@ function App({ initialStatus, initialJobs }: { initialStatus: SystemStatus; init
     }
   }
   async function publish(s: Study) {
+    setPressedStudies((current) => {
+      const next = new Set(current);
+      next.add(s.studyInstanceUID);
+      return next;
+    });
+    setSubmittingStudies((current) => {
+      const next = new Set(current);
+      next.add(s.studyInstanceUID);
+      return next;
+    });
     setMessage(`Preparando ${s.studyDescription}…`);
     try {
       const j = await api()?.CreateDiscJob(s.studyInstanceUID);
@@ -133,6 +150,12 @@ function App({ initialStatus, initialJobs }: { initialStatus: SystemStatus; init
       setMessage(`Error: ${String(e)}`);
       const x = await api()?.ListJobs();
       setJobs(x ?? []);
+    } finally {
+      setSubmittingStudies((current) => {
+        const next = new Set(current);
+        next.delete(s.studyInstanceUID);
+        return next;
+      });
     }
   }
   React.useEffect(() => {
@@ -213,7 +236,7 @@ function App({ initialStatus, initialJobs }: { initialStatus: SystemStatus; init
             </strong>
           )}
         </section>
-        <section className="panel">
+        <section className="panel studiesPanel">
           <div className="panelTitle">
             <h2>Estudios</h2>
             <span>{studies.length} resultados</span>
@@ -227,11 +250,36 @@ function App({ initialStatus, initialJobs }: { initialStatus: SystemStatus; init
               <span>Imágenes</span>
               <span></span>
             </div>
-            {studies.map((s) => (
-              <div
-                className="tr"
-                key={`${s.studyInstanceUID}-${s.patientName}-${s.studyDate}-${s.studyDescription}`}
-              >
+            {studies.map((s) => {
+              const studyJobs = jobs.filter(
+                (job) => job.studyInstanceUID === s.studyInstanceUID,
+              );
+              const isSubmitting = submittingStudies.has(s.studyInstanceUID);
+              const isRecorded = studyJobs.some(
+                (job) => job.status === "Completed",
+              );
+              const isProcessing = studyJobs.some(
+                (job) => job.status !== "Completed" && job.status !== "Failed",
+              );
+              const hasFailed =
+                !isRecorded &&
+                !isProcessing &&
+                studyJobs.some((job) => job.status === "Failed");
+              const wasPressed =
+                pressedStudies.has(s.studyInstanceUID) ||
+                isRecorded ||
+                isProcessing;
+              const buttonState = hasFailed
+                ? "recordingFailed"
+                : wasPressed
+                  ? "recordingSelected"
+                  : "";
+
+              return (
+                <div
+                  className="tr"
+                  key={`${s.studyInstanceUID}-${s.patientName}-${s.studyDate}-${s.studyDescription}`}
+                >
                 <span className="patient">{s.patientName}</span>
                 <span>
                   {new Date(s.studyDate + "T00:00").toLocaleDateString("es")}
@@ -243,9 +291,14 @@ function App({ initialStatus, initialJobs }: { initialStatus: SystemStatus; init
                 <span>{s.instanceCount}</span>
                 <span>
                   <button
-                    className="action"
+                    className={`action ${buttonState}`}
                     onClick={() => publish(s)}
-                    disabled={!s.studyInstanceUID}
+                    disabled={
+                      !s.studyInstanceUID ||
+                      isSubmitting ||
+                      isProcessing ||
+                      isRecorded
+                    }
                     title={
                       !s.studyInstanceUID
                         ? "El servidor no proporcionó EST_UID"
@@ -255,8 +308,9 @@ function App({ initialStatus, initialJobs }: { initialStatus: SystemStatus; init
                     Grabar CD
                   </button>
                 </span>
-              </div>
-            ))}
+                </div>
+              );
+            })}
           </div>
         </section>
         <section className="panel jobs">
