@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/local/dicom-disc-suite/apps/ap2-viewer/internal/environment"
@@ -75,6 +76,8 @@ func (a *App) resolveStudyPath() (string, string) {
 
 // resolveStudyPath keeps the viewer portable: it never depends on a user- or
 // operating-system-specific absolute path.
+// resolveStudyPath keeps the viewer portable: it never depends on a user- or
+// operating-system-specific absolute path.
 func resolveStudyPath(contentDir, executable, workDir string) (string, string) {
 	if contentDir != "" {
 		return studyPaths(contentDir)
@@ -83,6 +86,12 @@ func resolveStudyPath(contentDir, executable, workDir string) (string, string) {
 	// On a published disc, study.dat and data live beside the viewer executable.
 	if executable != "" {
 		exeDir := filepath.Dir(executable)
+
+		// Ajuste para macOS: Si corre dentro de un bundle .app, sube 3 niveles fuera de Contents/MacOS/
+		if strings.Contains(executable, ".app/Contents/MacOS") {
+			exeDir = filepath.Clean(filepath.Join(exeDir, "..", "..", ".."))
+		}
+
 		if isStudyDir(exeDir) {
 			return studyPaths(exeDir)
 		}
@@ -93,7 +102,11 @@ func resolveStudyPath(contentDir, executable, workDir string) (string, string) {
 	// macOS and Linux, regardless of where the repository was cloned.
 	starts := []string{workDir}
 	if executable != "" {
-		starts = append(starts, filepath.Dir(executable))
+		exeDir := filepath.Dir(executable)
+		if strings.Contains(executable, ".app/Contents/MacOS") {
+			exeDir = filepath.Clean(filepath.Join(exeDir, "..", "..", ".."))
+		}
+		starts = append(starts, exeDir)
 	}
 	for _, start := range starts {
 		for dir := filepath.Clean(start); dir != ""; dir = filepath.Dir(dir) {
@@ -111,6 +124,9 @@ func resolveStudyPath(contentDir, executable, workDir string) (string, string) {
 	base := workDir
 	if executable != "" {
 		base = filepath.Dir(executable)
+		if strings.Contains(executable, ".app/Contents/MacOS") {
+			base = filepath.Clean(filepath.Join(base, "..", "..", ".."))
+		}
 	}
 	return studyPaths(base)
 }
