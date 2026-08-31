@@ -41,7 +41,7 @@ func (b *StudyPackageBuilder) Build(ctx context.Context, study models.Study) (mo
 	root := filepath.Join(b.TempRoot, study.StudyInstanceUID)
 	now.TempPath = root
 	now.DataPath = filepath.Join(root, "data")
-	now.ViewerPath = filepath.Join(root, "AP2")
+	now.ViewerPath = root
 	now.ManifestPath = filepath.Join(root, "study.dat")
 	now.LabelPath = filepath.Join(root, "label", "label.png")
 
@@ -51,7 +51,7 @@ func (b *StudyPackageBuilder) Build(ctx context.Context, study models.Study) (mo
 		return now, err
 	}
 
-	for _, p := range []string{now.DataPath, now.ViewerPath, filepath.Dir(now.LabelPath)} {
+	for _, p := range []string{now.DataPath, filepath.Dir(now.LabelPath)} {
 		if err := os.MkdirAll(p, 0755); err != nil {
 			return now, err
 		}
@@ -64,7 +64,7 @@ func (b *StudyPackageBuilder) Build(ctx context.Context, study models.Study) (mo
 
 	now.Status = models.Preparing
 
-	if err := extractViewerBuilds(b.ViewerBuilds, now.ViewerPath); err != nil {
+	if err := extractViewerBuilds(b.ViewerBuilds, root); err != nil {
 		return now, fmt.Errorf("extract embedded AP2 viewer builds: %w", err)
 	}
 
@@ -124,25 +124,48 @@ func extractViewerBuilds(builds fs.FS, destination string) error {
 		if walkErr != nil {
 			return walkErr
 		}
-		relative, err := filepath.Rel("viewer-builds", filepath.FromSlash(source))
-		if err != nil || relative == "." {
-			return err
+		if source == "viewer-builds" {
+			return nil
 		}
-		target := filepath.Join(destination, relative)
+
+		// Normalizar la ruta a barras inclinadas (/)
+		slashSource := filepath.ToSlash(source)
+
+		// Determinar la ruta relativa removiendo la subcarpeta de origen (windows/ o macos/)
+		var relative string
+		if strings.HasPrefix(slashSource, "viewer-builds/windows/") {
+			relative = strings.TrimPrefix(slashSource, "viewer-builds/windows/")
+		} else if strings.HasPrefix(slashSource, "viewer-builds/macos/") {
+			relative = strings.TrimPrefix(slashSource, "viewer-builds/macos/")
+		} else {
+			return nil
+		}
+
+		if relative == "" {
+			return nil
+		}
+
+		// Construir la ruta de destino directa en la raíz
+		target := filepath.Join(destination, filepath.FromSlash(relative))
+
 		if entry.IsDir() {
 			return os.MkdirAll(target, 0o755)
 		}
-		if source == "viewer-builds/windows/README.txt" || source == "viewer-builds/macos/README.txt" {
+		if slashSource == "viewer-builds/windows/README.txt" || slashSource == "viewer-builds/macos/README.txt" {
 			return nil
 		}
+
 		content, err := fs.ReadFile(builds, source)
 		if err != nil {
 			return fmt.Errorf("read embedded viewer file %q: %w", source, err)
 		}
+
+		// Asignar permisos 0755 al .exe de Windows y a los binarios ejecutables de Mac
 		mode := fs.FileMode(0o644)
-		if source == windowsViewer || strings.Contains(source, "/Contents/MacOS/") {
+		if slashSource == windowsViewer || strings.Contains(slashSource, "Contents/MacOS/") {
 			mode = 0o755
 		}
+
 		if err := os.WriteFile(target, content, mode); err != nil {
 			return fmt.Errorf("write viewer file %q: %w", target, err)
 		}
