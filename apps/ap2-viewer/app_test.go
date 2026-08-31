@@ -35,12 +35,35 @@ func TestResolveStudyPathFindsNewestDevelopmentStudy(t *testing.T) {
 	assertPaths(t, newer, manifest, data)
 }
 
+func TestVisibleImageSeriesExcludesStructuredReports(t *testing.T) {
+	series := []ViewerSeries{
+		{ID: "mr", Modality: "MR", Files: []ViewerFile{{InstanceUID: "mr-1"}, {InstanceUID: "mr-2"}}},
+		{ID: "sr", Modality: "SR", Files: []ViewerFile{{InstanceUID: "sr-1"}}},
+		{ID: "ct", Modality: "CT", Files: []ViewerFile{{InstanceUID: "ct-1"}}},
+	}
+
+	visible, imageCount := visibleImageSeries(series)
+	if len(visible) != 2 || visible[0].ID != "mr" || visible[1].ID != "ct" {
+		t.Fatalf("unexpected visible series: %#v", visible)
+	}
+	if imageCount != 3 {
+		t.Fatalf("expected 3 visible images, got %d", imageCount)
+	}
+}
+
+func TestVisibleImageSeriesRecognizesNormalizedSRModality(t *testing.T) {
+	visible, imageCount := visibleImageSeries([]ViewerSeries{{ID: "sr", Modality: " sr ", Files: []ViewerFile{{InstanceUID: "sr-1"}}}})
+	if len(visible) != 0 || imageCount != 0 {
+		t.Fatalf("SR must be completely hidden: series=%#v imageCount=%d", visible, imageCount)
+	}
+}
+
 func createStudyDir(t *testing.T, dir string, modified time.Time) {
 	t.Helper()
 	if err := os.MkdirAll(filepath.Join(dir, "data"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	manifest := filepath.Join(dir, "study.json")
+	manifest := filepath.Join(dir, "study.dat")
 	if err := os.WriteFile(manifest, []byte(`{"id":"test","series":[]}`), 0o644); err != nil {
 		t.Fatal(err)
 	}
@@ -51,7 +74,7 @@ func createStudyDir(t *testing.T, dir string, modified time.Time) {
 
 func assertPaths(t *testing.T, root, manifest, data string) {
 	t.Helper()
-	if manifest != filepath.Join(root, "study.json") || data != filepath.Join(root, "data") {
+	if manifest != filepath.Join(root, "study.dat") || data != filepath.Join(root, "data") {
 		t.Fatalf("unexpected paths: manifest=%q data=%q", manifest, data)
 	}
 }

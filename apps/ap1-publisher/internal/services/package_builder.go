@@ -4,9 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io/fs"
 	"log/slog"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/local/dicom-disc-suite/shared/models"
@@ -15,7 +17,7 @@ import (
 type StudyPackageBuilder struct {
 	Repository   StudyRetriever
 	TempRoot     string
-	ViewerSource string
+	ViewerBuilds fs.FS
 	Logger       *slog.Logger
 }
 
@@ -62,14 +64,8 @@ func (b *StudyPackageBuilder) Build(ctx context.Context, study models.Study) (mo
 
 	now.Status = models.Preparing
 
-	if b.ViewerSource != "" {
-		if _, err := os.Stat(b.ViewerSource); err == nil {
-			if err = copyFile(b.ViewerSource, filepath.Join(now.ViewerPath, filepath.Base(b.ViewerSource))); err != nil {
-				return now, err
-			}
-		} else {
-			os.WriteFile(filepath.Join(now.ViewerPath, "README.txt"), []byte("AP2 executable will be copied here after its production build.\n"), 0644)
-		}
+	if err := extractViewerBuilds(b.ViewerBuilds, now.ViewerPath); err != nil {
+		return now, fmt.Errorf("extract embedded AP2 viewer builds: %w", err)
 	}
 
 	// 1. Mapear la estructura del estudio
@@ -102,10 +98,54 @@ func (b *StudyPackageBuilder) Build(ctx context.Context, study models.Study) (mo
 	return now, nil
 }
 
-func copyFile(src, dst string) error {
-	in, e := os.ReadFile(src)
-	if e != nil {
-		return e
+const (
+	windowsViewer = "viewer-builds/windows/Symphony Viewer.exe"
+	macOSViewer   = "viewer-builds/macos/Symphony Viewer.app"
+)
+
+func extractViewerBuilds(builds fs.FS, destination string) error {
+	if builds == nil {
+		return fmt.Errorf("embedded viewer filesystem is not configured")
 	}
-	return os.WriteFile(dst, in, 0755)
+	if info, err := fs.Stat(builds, windowsViewer); err != nil || !info.Mode().IsRegular() {
+		if err == nil {
+			err = fmt.Errorf("not a regular file")
+		}
+		return fmt.Errorf("embedded Windows build %q is missing: %w", windowsViewer, err)
+	}
+	if info, err := fs.Stat(builds, macOSViewer); err != nil || !info.IsDir() {
+		if err == nil {
+			err = fmt.Errorf("not a directory")
+		}
+		return fmt.Errorf("embedded macOS build %q is missing: %w", macOSViewer, err)
+	}
+
+	return fs.WalkDir(builds, "viewer-builds", func(source string, entry fs.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			return walkErr
+		}
+		relative, err := filepath.Rel("viewer-builds", filepath.FromSlash(source))
+		if err != nil || relative == "." {
+			return err
+		}
+		target := filepath.Join(destination, relative)
+		if entry.IsDir() {
+			return os.MkdirAll(target, 0o755)
+		}
+		if source == "viewer-builds/windows/README.txt" || source == "viewer-builds/macos/README.txt" {
+			return nil
+		}
+		content, err := fs.ReadFile(builds, source)
+		if err != nil {
+			return fmt.Errorf("read embedded viewer file %q: %w", source, err)
+		}
+		mode := fs.FileMode(0o644)
+		if source == windowsViewer || strings.Contains(source, "/Contents/MacOS/") {
+			mode = 0o755
+		}
+		if err := os.WriteFile(target, content, mode); err != nil {
+			return fmt.Errorf("write viewer file %q: %w", target, err)
+		}
+		return nil
+	})
 }

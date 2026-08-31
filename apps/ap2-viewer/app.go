@@ -203,12 +203,6 @@ func (a *App) LoadStudy() ViewerState {
 	}
 
 	state := ViewerState{DataFound: true, DataPath: dataPathDir}
-	entries, _ := os.ReadDir(dataPathDir)
-	for _, x := range entries {
-		if !x.IsDir() {
-			state.ImageCount++
-		}
-	}
 
 	// 1. Leer los bytes cifrados de study.dat
 	encryptedBytes, e := os.ReadFile(dataPath)
@@ -230,9 +224,26 @@ func (a *App) LoadStudy() ViewerState {
 		state.Error = fmt.Sprintf("el manifiesto descifrado no es un JSON válido: %v", e)
 		return state
 	}
+	m.Series, state.ImageCount = visibleImageSeries(m.Series)
 	state.Manifest = &m
 
 	return state
+}
+
+// visibleImageSeries removes Structured Reports from the UI model without
+// touching their physical DICOM files. ImageCount is derived from the files in
+// the remaining image series rather than from every file present in data/.
+func visibleImageSeries(series []ViewerSeries) ([]ViewerSeries, int) {
+	visible := make([]ViewerSeries, 0, len(series))
+	imageCount := 0
+	for _, item := range series {
+		if strings.EqualFold(strings.TrimSpace(item.Modality), "SR") {
+			continue
+		}
+		visible = append(visible, item)
+		imageCount += len(item.Files)
+	}
+	return visible, imageCount
 }
 
 func (a *App) GetDicomFile(uidOrFilename string) (string, error) {

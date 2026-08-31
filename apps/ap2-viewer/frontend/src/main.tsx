@@ -159,35 +159,37 @@ function App({ state, Viewer }: { state: State; Viewer: any }) {
   useEffect(() => {
     if (!state?.manifest?.series) return;
 
-    state.manifest.series.forEach(async (s: any) => {
-      const firstFile = s.files?.[0];
-      const uid =
-        typeof firstFile === "string" ? firstFile : firstFile?.instanceUid;
-      if (!uid || thumbnailUrls[uid]) return;
+    state.manifest.series
+      .filter((s: any) => s.modality?.trim().toUpperCase() !== "SR")
+      .forEach(async (s: any) => {
+        const firstFile = s.files?.[0];
+        const uid =
+          typeof firstFile === "string" ? firstFile : firstFile?.instanceUid;
+        if (!uid || thumbnailUrls[uid]) return;
 
-      // Si es un reporte o documento sin imagen (SR, DOC), renderizar icono de documento
-      if (s.modality === "SR" || s.modality === "DOC") {
-        const docCanvas = document.createElement("canvas");
-        docCanvas.width = 128;
-        docCanvas.height = 128;
-        const ctx = docCanvas.getContext("2d");
-        if (ctx) {
-          ctx.fillStyle = "#1e1e2d";
-          ctx.fillRect(0, 0, 128, 128);
-          ctx.fillStyle = "#8888a0";
-          ctx.font = "bold 14px sans-serif";
-          ctx.textAlign = "center";
-          ctx.fillText("DOCUMENTO", 64, 60);
-          ctx.fillText("DICOM SR", 64, 78);
-          setThumbnailUrls((prev) => ({
-            ...prev,
-            [uid]: docCanvas.toDataURL("image/png"),
-          }));
+        // Los documentos no pixelados que sí sean visibles usan un icono.
+        if (s.modality === "DOC") {
+          const docCanvas = document.createElement("canvas");
+          docCanvas.width = 128;
+          docCanvas.height = 128;
+          const ctx = docCanvas.getContext("2d");
+          if (ctx) {
+            ctx.fillStyle = "#1e1e2d";
+            ctx.fillRect(0, 0, 128, 128);
+            ctx.fillStyle = "#8888a0";
+            ctx.font = "bold 14px sans-serif";
+            ctx.textAlign = "center";
+            ctx.fillText("DOCUMENTO", 64, 60);
+            ctx.fillText("DICOM", 64, 78);
+            setThumbnailUrls((prev) => ({
+              ...prev,
+              [uid]: docCanvas.toDataURL("image/png"),
+            }));
+          }
+          return;
         }
-        return;
-      }
 
-      try {
+        try {
         const blob = await handleGetDicomFile(uid);
         const arrayBuffer = await blob.arrayBuffer();
         const byteArray = new Uint8Array(arrayBuffer);
@@ -303,10 +305,10 @@ function App({ state, Viewer }: { state: State; Viewer: any }) {
             }
           }
         }
-      } catch (e) {
-        console.error("Error procesando miniatura:", e);
-      }
-    });
+        } catch (e) {
+          console.error("Error procesando miniatura:", e);
+        }
+      });
   }, [state]);
 
   const handleGetThumbnailUrl = (param: any): string => {
@@ -349,16 +351,18 @@ function App({ state, Viewer }: { state: State; Viewer: any }) {
     studyDate: state.manifest?.studyDate,
     studyTime: state.manifest?.studyTime,
     studyDescription: state.manifest?.studyDescription,
-    series: (state.manifest?.series || []).map((s: any) => ({
-      id: s.id || s.seriesInstanceUid,
-      seriesInstanceUid: s.seriesInstanceUid,
-      modality: s.modality || "MR",
-      name: s.name || s.seriesDescription || "Serie",
-      files: (s.files || []).map((f: any, idx: number) => ({
-        position: f.position ?? idx + 1,
-        instanceUid: typeof f === "string" ? f : f.instanceUid,
+    series: (state.manifest?.series || [])
+      .filter((s: any) => s.modality?.trim().toUpperCase() !== "SR")
+      .map((s: any) => ({
+        id: s.id || s.seriesInstanceUid,
+        seriesInstanceUid: s.seriesInstanceUid,
+        modality: s.modality || "MR",
+        name: s.name || s.seriesDescription || "Serie",
+        files: (s.files || []).map((f: any, idx: number) => ({
+          position: f.position ?? idx + 1,
+          instanceUid: typeof f === "string" ? f : f.instanceUid,
+        })),
       })),
-    })),
   };
 
   return (

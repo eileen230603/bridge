@@ -77,7 +77,7 @@ func NewApp() (*App, error) {
 		return nil, fmt.Errorf("TD Bridge está deshabilitado en la configuración")
 	}
 	publisher := &adapters.TdBridgePublisher{MonitoringFolder: cfg.Epson.MonitoringFolder, StagingDirectory: cfg.Epson.StagingDirectory, DefaultCopies: cfg.Epson.DefaultCopies, Logger: logger}
-	builder := &services.StudyPackageBuilder{Repository: studyRepo, TempRoot: cfg.TemporaryDirectory, ViewerSource: filepath.Join("..", "ap2-viewer", "build", "bin", "Portable DICOM Viewer.exe"), Logger: logger}
+	builder := &services.StudyPackageBuilder{Repository: studyRepo, TempRoot: cfg.TemporaryDirectory, ViewerBuilds: viewerBuilds, Logger: logger}
 	monitor := adapters.TdBridgeJobMonitor{MonitoringFolder: cfg.Epson.MonitoringFolder}
 	return &App{cfg: cfg, configPath: cfgPath, studyRepo: studyRepo, publisher: publisher, monitor: monitor, builder: builder, logger: logger, studies: map[string]models.Study{}, studyServerState: "No probado"}, nil
 }
