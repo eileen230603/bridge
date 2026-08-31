@@ -59,7 +59,7 @@ const safeGetDicomFile = async (uidOrFilename: string): Promise<string> => {
   return "";
 };
 type StartupState = "loading" | "ready" | "error";
-const MINIMUM_SPLASH_MS = 20_000;
+const MINIMUM_SPLASH_MS = 10_000;
 const SPLASH_FADE_MS = 500;
 const delay = (milliseconds: number) => new Promise<void>((resolve) => window.setTimeout(resolve, milliseconds));
 

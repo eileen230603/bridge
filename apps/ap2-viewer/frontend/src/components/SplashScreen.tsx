@@ -2,13 +2,14 @@ import { useEffect, useState } from "react";
 import symphonyLogo from "../assets/logo.png";
 import "./SplashScreen.css";
 
-const SPLASH_DURATION_MS = 20_000;
+// Reducido a 10 segundos
+const SPLASH_DURATION_MS = 10_000;
 
 function progressMessage(elapsed: number) {
-  if (elapsed >= 19_000) return "Visor listo";
-  if (elapsed >= 15_000) return "Cargando estudio";
-  if (elapsed >= 10_000) return "Inicializando visor DICOM";
-  if (elapsed >= 5_000) return "Preparando imágenes";
+  if (elapsed >= 9_000) return "Visor listo";
+  if (elapsed >= 7_000) return "Cargando estudio";
+  if (elapsed >= 5_000) return "Inicializando visor DICOM";
+  if (elapsed >= 2_500) return "Preparando imágenes";
   return "Leyendo estudio";
 }
 
@@ -19,7 +20,7 @@ export function SplashScreen({ exiting = false }: { exiting?: boolean }) {
     const timer = window.setInterval(() => setElapsed(Math.min(performance.now() - startedAt, SPLASH_DURATION_MS)), 100);
     return () => window.clearInterval(timer);
   }, []);
-  const progress = exiting ? 100 : Math.min(100, Math.max(3, elapsed / SPLASH_DURATION_MS * 100));
+  const progress = exiting ? 100 : Math.min(100, Math.max(3, (elapsed / SPLASH_DURATION_MS) * 100));
   const detail = exiting ? "Visor listo" : progressMessage(elapsed);
   return (
     <main className={`startupScreen${exiting ? " startupScreenExit" : ""}`} role="status" aria-live="polite">
@@ -50,9 +51,14 @@ export function SplashScreen({ exiting = false }: { exiting?: boolean }) {
 }
 
 export function StartupError({ detail }: { detail: string }) {
-  return <main className="startupScreen" role="alert"><section className="startupContent startupError">
-    <img className="startupLogo startupErrorLogo" src={symphonyLogo} alt="Symphony" />
-    <div className="startupErrorIcon" aria-hidden="true">!</div>
-    <h1>No se pudo abrir el estudio.</h1><p className="startupDetail">{detail}</p>
-  </section></main>;
+  return (
+    <main className="startupScreen" role="alert">
+      <section className="startupContent startupError">
+        <img className="startupLogo startupErrorLogo" src={symphonyLogo} alt="Symphony" />
+        <div className="startupErrorIcon" aria-hidden="true">!</div>
+        <h1>No se pudo abrir el estudio.</h1>
+        <p className="startupDetail">{detail}</p>
+      </section>
+    </main>
+  );
 }
