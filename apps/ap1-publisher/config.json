@@ -4,7 +4,7 @@
   "logFile": "C:\\Users\\HP VICTUS\\Desktop\\bridge\\runtime\\logs\\ap1.log",
   "studyApi": {
     "protocol": "http",
-    "host": "172.16.16.71",
+    "host": "192.168.0.102",
     "port": 4000,
     "timeoutSeconds": 60
   },

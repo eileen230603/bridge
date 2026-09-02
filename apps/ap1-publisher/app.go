@@ -33,6 +33,8 @@ type App struct {
 	studies          map[string]models.Study
 	jobs             []models.DiscJob
 	studyServerState string
+	searchCancel     context.CancelFunc
+	searchID         uint64
 }
 
 type SystemStatus struct {
@@ -220,8 +222,29 @@ func (a *App) SearchStudies(from, to string) ([]models.Study, error) {
 	if !a.cfg.StudyAPI.IsConfigured() {
 		return nil, errors.New("Servidor de estudios no configurado")
 	}
-	studies, e := a.studyRepo.SearchStudies(a.ctx, f, t)
+	a.mu.Lock()
+	if a.searchCancel != nil {
+		a.searchCancel()
+	}
+	a.searchID++
+	searchID := a.searchID
+	ctx, cancel := context.WithCancel(a.ctx)
+	a.searchCancel = cancel
+	a.mu.Unlock()
+	defer func() {
+		cancel()
+		a.mu.Lock()
+		if a.searchID == searchID {
+			a.searchCancel = nil
+		}
+		a.mu.Unlock()
+	}()
+
+	studies, e := a.studyRepo.SearchStudies(ctx, f, t)
 	if e != nil {
+		if errors.Is(e, context.Canceled) {
+			return nil, errors.New("Búsqueda cancelada.")
+		}
 		a.mu.Lock()
 		a.studyServerState = "Error"
 		a.mu.Unlock()
@@ -239,6 +262,15 @@ func (a *App) SearchStudies(from, to string) ([]models.Study, error) {
 	a.mu.Unlock()
 	return studies, nil
 }
+
+func (a *App) CancelSearch() {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	if a.searchCancel != nil {
+		a.searchCancel()
+	}
+}
+
 func (a *App) CreateDiscJob(uid string) (models.DiscJob, error) {
 	a.mu.RLock()
 	study, ok := a.studies[uid]

@@ -153,6 +153,9 @@ main {
   font-weight: 700;
   cursor: pointer;
 }
+.filters .cancelSearch {
+  background: #b93838;
+}
 .panel {
   background: #fff;
   border: 1px solid #dce5eb;
@@ -177,6 +180,26 @@ main {
 .panelTitle span {
   color: #728391;
   font-size: 12px;
+}
+.studySearch {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+.studySearch input {
+  width: min(280px, 32vw);
+  padding: 9px 11px;
+  border: 1px solid #cad5de;
+  border-radius: 7px;
+  background: #fff;
+  color: #102d42;
+}
+.studySearch button {
+  border: 0;
+  background: transparent;
+  color: #0a897e;
+  font-weight: 700;
+  cursor: pointer;
 }
 .tr {
   display: grid;

@@ -6,6 +6,7 @@ interface Window {
     main?: {
       App?: {
         SearchStudies(from: string, to: string): Promise<Study[]>;
+        CancelSearch(): Promise<void>;
         CreateDiscJob(uid: string): Promise<DiscJob>;
         ListJobs(): Promise<DiscJob[]>;
         GetSystemStatus(): Promise<{

@@ -43,8 +43,8 @@ type ConnectionTestResult = { status: string; message: string };
 
 const api = () => window.go?.main?.App;
 
-const MINIMUM_SPLASH_MS = 4_000;
-const SPLASH_FADE_MS = 200;
+const MINIMUM_SPLASH_MS = 6_000;
+const SPLASH_FADE_MS = 300;
 const delay = (milliseconds: number) => new Promise<void>((resolve) => window.setTimeout(resolve, milliseconds));
 
 function App({ initialStatus, initialJobs }: { initialStatus: SystemStatus; initialJobs: DiscJob[] }) {
@@ -53,6 +53,7 @@ function App({ initialStatus, initialJobs }: { initialStatus: SystemStatus; init
   const [from, setFrom] = React.useState(prior);
   const [to, setTo] = React.useState(today);
   const [studies, setStudies] = React.useState<Study[]>([]);
+  const [studyQuery, setStudyQuery] = React.useState("");
   const [jobs, setJobs] = React.useState<DiscJob[]>(initialJobs);
   const [loading, setLoading] = React.useState(false);
   const [submittingStudies, setSubmittingStudies] = React.useState<Set<string>>(
@@ -130,6 +131,24 @@ function App({ initialStatus, initialJobs }: { initialStatus: SystemStatus; init
       setLoading(false);
     }
   }
+  async function cancelSearch() {
+    await api()?.CancelSearch();
+    setMessage("Búsqueda cancelada.");
+  }
+  const normalizedStudyQuery = studyQuery.trim().toLocaleLowerCase("es");
+  const filteredStudies = normalizedStudyQuery
+    ? studies.filter((study) =>
+        [
+          study.patientName,
+          study.studyDescription,
+          study.modality,
+          study.studyDate,
+          study.studyInstanceUID,
+        ].some((value) =>
+          String(value ?? "").toLocaleLowerCase("es").includes(normalizedStudyQuery),
+        ),
+      )
+    : studies;
   async function publish(s: Study) {
     setPressedStudies((current) => {
       const next = new Set(current);
@@ -217,9 +236,13 @@ function App({ initialStatus, initialJobs }: { initialStatus: SystemStatus; init
                 onChange={(e) => setTo(e.target.value)}
               />
             </label>
-            <button onClick={search} disabled={loading}>
-              {loading ? "Buscando…" : "Buscar estudios"}
-            </button>
+            {loading ? (
+              <button className="cancelSearch" onClick={cancelSearch}>
+                Cancelar búsqueda
+              </button>
+            ) : (
+              <button onClick={search}>Buscar estudios</button>
+            )}
           </div>
         </section>
         <section className="systemStatus">
@@ -239,7 +262,24 @@ function App({ initialStatus, initialJobs }: { initialStatus: SystemStatus; init
         <section className="panel studiesPanel">
           <div className="panelTitle">
             <h2>Estudios</h2>
-            <span>{studies.length} resultados</span>
+            <div className="studySearch">
+              <input
+                type="search"
+                value={studyQuery}
+                onChange={(event) => setStudyQuery(event.target.value)}
+                placeholder="Buscar paciente o estudio…"
+                aria-label="Buscar dentro de los estudios"
+              />
+              {studyQuery && (
+                <button onClick={() => setStudyQuery("")} aria-label="Limpiar búsqueda">
+                  Limpiar
+                </button>
+              )}
+              <span>
+                {filteredStudies.length}
+                {studyQuery ? ` de ${studies.length}` : ""} resultados
+              </span>
+            </div>
           </div>
           <div className="table">
             <div className="tr th">
@@ -250,7 +290,7 @@ function App({ initialStatus, initialJobs }: { initialStatus: SystemStatus; init
               <span>Imágenes</span>
               <span></span>
             </div>
-            {studies.map((s) => {
+            {filteredStudies.map((s) => {
               const studyJobs = jobs.filter(
                 (job) => job.studyInstanceUID === s.studyInstanceUID,
               );
