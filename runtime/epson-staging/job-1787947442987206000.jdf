@@ -1,0 +1,8 @@
+JOB_ID=job-1787947442987206000
+COPIES=1
+DISC_TYPE=DVD
+FORMAT=JOLIET
+DATA=../../runtime/temp/12374e42-3ffcfa9d-a4ba9ed7-713338cf-91608256/data	data
+DATA=../../runtime/temp/12374e42-3ffcfa9d-a4ba9ed7-713338cf-91608256/AP2	AP2
+DATA=../../runtime/temp/12374e42-3ffcfa9d-a4ba9ed7-713338cf-91608256/study.dat	study.json
+LABEL=../../runtime/temp/12374e42-3ffcfa9d-a4ba9ed7-713338cf-91608256/label/label.png

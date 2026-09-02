@@ -1,0 +1,41 @@
+/* Sobreescritura global de variables para WKWebView / Wails */
+:root {
+  /* En lugar de dar el Hex sólido, le pasamos RGBA con transparencia integrada al color secundario */
+  --dv-secondary: rgba(230, 57, 70, 0.2) !important;
+  --dv-secondary-foreground: #e63946 !important;
+  --dv-primary: #0a5f8a !important;
+}
+
+/* Forzar que cualquier botón o elemento activo que tome bg-secondary no quede sólido */
+[data-state="active"] {
+  background-color: rgba(230, 57, 70, 0.15) !important;
+  background: rgba(230, 57, 70, 0.15) !important;
+  border-color: rgba(230, 57, 70, 0.4) !important;
+}
+
+/* Asegurar que el icono SVG interno mantenga su color rojo y no sea tapado */
+[data-state="active"] svg,
+[data-state="active"] * {
+  color: #e63946 !important;
+  fill: currentColor !important;
+  stroke: currentColor !important;
+}
+/* Forzar la anulación de estilos inline en los botones de la barra superior */
+button[data-state="active"],
+div[data-state="active"],
+[class*="bg-secondary"] {
+  background-color: rgba(230, 57, 70, 0.15) !important;
+  background: rgba(230, 57, 70, 0.15) !important;
+  border-color: rgba(230, 57, 70, 0.35) !important;
+}
+
+/* Evitar que el color de fondo tape el SVG interno */
+button[data-state="active"] svg,
+div[data-state="active"] svg {
+  color: #e63946 !important;
+  fill: none !important;
+  stroke: #e63946 !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+  z-index: 10 !important;
+}
