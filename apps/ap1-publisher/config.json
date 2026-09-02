@@ -1,17 +1,17 @@
 {
-  "temporaryDirectory": "../../runtime/temp",
-  "completedDirectory": "../../runtime/completed",
-  "logFile": "../../runtime/logs/ap1.log",
+  "temporaryDirectory": "C:\\Users\\HP VICTUS\\Desktop\\bridge\\runtime\\temp",
+  "completedDirectory": "C:\\Users\\HP VICTUS\\Desktop\\bridge\\runtime\\completed",
+  "logFile": "C:\\Users\\HP VICTUS\\Desktop\\bridge\\runtime\\logs\\ap1.log",
   "studyApi": {
-    "baseUrl": "http://192.168.0.102:4000",
-    "getStudiesPath": "/getestudios",
-    "downloadStudyPath": "/DescargaEstudio",
+    "protocol": "http",
+    "host": "192.168.0.102",
+    "port": 4000,
     "timeoutSeconds": 60
   },
   "epson": {
-    "enabled": true,
     "monitoringFolder": "C:\\EPSON\\TDBridge\\Orders",
-    "stagingDirectory": "../../runtime/epson-staging",
+    "stagingDirectory": "C:\\Users\\HP VICTUS\\Desktop\\bridge\\runtime\\epson-staging",
+    "enabled": true,
     "defaultCopies": 1
   },
   "cleanupAfterHours": 4,
