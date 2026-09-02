@@ -38,6 +38,7 @@ func BuildJDF(job models.DiscJob, requestedCopies ...int) ([]byte, error) {
 	if copies < 1 || copies > 1000 {
 		return nil, errors.New("TD Bridge COPIES must be between 1 and 1000")
 	}
+	autorunPath := filepath.Join(job.TempPath, "autorun.inf")
 	paths := []string{job.DataPath, job.ViewerPath, job.ManifestPath}
 	for _, path := range paths {
 		if strings.ContainsAny(path, "\r\n\t") {
@@ -49,8 +50,13 @@ func BuildJDF(job models.DiscJob, requestedCopies ...int) ([]byte, error) {
 	fmt.Fprintf(&out, "COPIES=%d\r\n", copies)
 	out.WriteString("DISC_TYPE=DVD\r\nFORMAT=UDF102\r\n")
 	fmt.Fprintf(&out, "DATA=%s\tdata\r\n", job.DataPath)
-	fmt.Fprintf(&out, "DATA=%s\tAP2\r\n", job.ViewerPath)
+	//fmt.Fprintf(&out, "DATA=%s\tAP2\r\n", job.ViewerPath)
+	fmt.Fprintf(&out, "DATA=%s\t.\r\n", job.ViewerPath)
 	fmt.Fprintf(&out, "DATA=%s\tstudy.json\r\n", job.ManifestPath)
+	// Mapea el archivo autorun.inf directamente a la raíz del disco
+    if info, err := os.Stat(autorunPath); err == nil && !info.IsDir() {
+        fmt.Fprintf(&out, "DATA=%s\tautorun.inf\r\n", autorunPath)
+    }
 	if job.LabelPath != "" {
 		if info, err := os.Stat(job.LabelPath); err != nil || info.IsDir() {
 			return nil, errors.New("label.png does not exist")
@@ -153,7 +159,7 @@ func validateStudyPackage(job models.DiscJob) error {
 	if info, err := os.Stat(job.TempPath); err != nil || !info.IsDir() {
 		return errors.New("study package does not exist")
 	}
-	for _, item := range []struct{ path, name string }{{job.DataPath, "data directory"}, {job.ViewerPath, "AP2 directory"}} {
+	for _, item := range []struct{ path, name string }{{job.DataPath, "data directory"}, {job.ViewerPath, "viewer directory"}} {
 		if info, err := os.Stat(item.path); err != nil || !info.IsDir() {
 			return fmt.Errorf("%s does not exist", item.name)
 		}

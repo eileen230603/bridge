@@ -3,13 +3,13 @@ import symphonyLogo from "../assets/logo.png";
 import "./SplashScreen.css";
 
 // Reducido a 10 segundos
-const SPLASH_DURATION_MS = 10_000;
+const SPLASH_DURATION_MS = 1_500;
 
 function progressMessage(elapsed: number) {
-  if (elapsed >= 9_000) return "Visor listo";
-  if (elapsed >= 7_000) return "Cargando estudio";
-  if (elapsed >= 5_000) return "Inicializando visor DICOM";
-  if (elapsed >= 2_500) return "Preparando imágenes";
+  if (elapsed >= 1_300) return "Visor listo";
+  if (elapsed >= 1_000) return "Cargando estudio";
+  if (elapsed >= 700) return "Inicializando visor DICOM";
+  if (elapsed >= 350) return "Preparando imágenes";
   return "Leyendo estudio";
 }
 

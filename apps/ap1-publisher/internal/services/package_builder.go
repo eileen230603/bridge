@@ -7,7 +7,9 @@ import (
 	"io/fs"
 	"log/slog"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"time"
 
@@ -65,7 +67,7 @@ func (b *StudyPackageBuilder) Build(ctx context.Context, study models.Study) (mo
 	now.Status = models.Preparing
 
 	if err := extractViewerBuilds(b.ViewerBuilds, root); err != nil {
-		return now, fmt.Errorf("extract embedded AP2 viewer builds: %w", err)
+		return now, fmt.Errorf("extract embedded viewer builds: %w", err)
 	}
 
 	// 1. Mapear la estructura del estudio
@@ -89,13 +91,32 @@ func (b *StudyPackageBuilder) Build(ctx context.Context, study models.Study) (mo
 	}
 	b.Logger.Info("Encrypted study manifest created", "job_id", now.ID)
 
+	// 5. Crear el archivo autorun.inf para la raíz del disco
+    autorunContent := []byte("[autorun]\r\nopen=Symphony Viewer.exe\r\nicon=Symphony Viewer.exe\r\nlabel=Symphony Disc\r\n")
+    autorunPath := filepath.Join(root, "autorun.inf")
+    if err := os.WriteFile(autorunPath, autorunContent, 0644); err != nil {
+        return now, fmt.Errorf("write autorun.inf: %w", err)
+    }
+    b.Logger.Info("autorun.inf created", "job_id", now.ID)
+	// 6. Ocultar la ventana de ejecución del archivo autorun.inf
+	hideFileWindows(autorunPath)
+
 	if err = GenerateDiscLabel(now.LabelPath, study); err != nil {
 		return now, fmt.Errorf("generate disc label: %w", err)
 	}
 
 	now.Status = models.Ready
 	b.Logger.Info("Study package prepared", "job_id", now.ID)
+	launchViewer(root)
 	return now, nil
+}
+// hideFileWindows aplica el atributo oculto al archivo si el sistema es Windows
+// hideFileWindows aplica el atributo oculto al archivo si el sistema es Windows
+func hideFileWindows(path string) {
+	if runtime.GOOS == "windows" {
+		cmd := exec.Command("attrib", "+h", path)
+		_ = cmd.Run()
+	}
 }
 
 const (
@@ -172,3 +193,23 @@ func extractViewerBuilds(builds fs.FS, destination string) error {
 		return nil
 	})
 }
+// launchViewer ejecuta automáticamente el visor del estudio al finalizar la preparación
+func launchViewer(studyRoot string) {
+	var cmd *exec.Cmd
+
+	if runtime.GOOS == "windows" {
+		exePath := filepath.Join(studyRoot, "Symphony Viewer.exe")
+		cmd = exec.Command(exePath)
+	} else if runtime.GOOS == "darwin" {
+		appPath := filepath.Join(studyRoot, "Symphony Viewer.app")
+		cmd = exec.Command("open", appPath)
+	} else {
+		return
+	}
+
+	cmd.Dir = studyRoot
+	// Start() inicia el proceso en segundo plano sin bloquear AP1
+	_ = cmd.Start()
+}
+
+

@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 )
@@ -89,19 +90,34 @@ func Load(path string) (Config, error) {
 	return LoadBytes(b, filepath.Dir(path))
 }
 
-// LoadBytes parses an embedded configuration and resolves its relative paths
-// against baseDir in the same way Load resolves paths beside a config file.
+// LoadBytes parses an embedded configuration and resolves its relative paths.
 func LoadBytes(b []byte, baseDir string) (Config, error) {
 	var c Config
 	e := json.Unmarshal(b, &c)
 	if e != nil {
 		return c, e
 	}
+
+	// Sanitiza las rutas si fueron generadas con prefijos cross-platform (p. ej. /Users/... en Windows)
+	c.TemporaryDirectory = sanitizeCrossPath(c.TemporaryDirectory)
+	c.CompletedDirectory = sanitizeCrossPath(c.CompletedDirectory)
+	c.LogFile = sanitizeCrossPath(c.LogFile)
+	c.Epson.MonitoringFolder = sanitizeCrossPath(c.Epson.MonitoringFolder)
+	c.Epson.StagingDirectory = sanitizeCrossPath(c.Epson.StagingDirectory)
+
 	c.TemporaryDirectory = resolve(baseDir, c.TemporaryDirectory)
 	c.CompletedDirectory = resolve(baseDir, c.CompletedDirectory)
 	c.LogFile = resolveOptional(baseDir, c.LogFile)
 	c.Epson.MonitoringFolder = resolveOptional(baseDir, c.Epson.MonitoringFolder)
 	c.Epson.StagingDirectory = resolveOptional(baseDir, c.Epson.StagingDirectory)
+
+	// Regla de oro para Windows: la carpeta de Epson siempre apunta a C:\ EPSON
+	if runtime.GOOS == "windows" {
+		if c.Epson.MonitoringFolder == "" || strings.Contains(c.Epson.MonitoringFolder, "runtime") {
+			c.Epson.MonitoringFolder = `C:\EPSON\TDBridge\Orders`
+		}
+	}
+
 	if c.Epson.DefaultCopies == 0 {
 		c.Epson.DefaultCopies = 1
 	}
@@ -135,15 +151,42 @@ func migrateLegacyServerConfig(c *ServerConfig) {
 		c.Port = port
 	}
 }
+
+// Limpia rutas contaminadas de macOS que se intenten ejecutar en Windows o viceversa.
+func sanitizeCrossPath(p string) string {
+	if runtime.GOOS == "windows" && strings.HasPrefix(p, "/Users/") {
+		if idx := strings.Index(p, "C:"); idx != -1 {
+			return p[idx:]
+		}
+		return "./runtime/temp"
+	}
+	return p
+}
+
 func resolveOptional(base, p string) string {
 	if p == "" {
 		return ""
 	}
 	return resolve(base, p)
 }
+
 func resolve(base, p string) string {
+	// Si la ruta ya es absoluta, la limpia
 	if filepath.IsAbs(p) {
 		return filepath.Clean(p)
 	}
-	return filepath.Clean(filepath.Join(base, p))
+
+	// Normaliza la ruta relativa (elimina prefijos tipo 'apps/ap1-publisher/')
+	cleanedRelative := filepath.Clean(p)
+	
+	// Si la ruta empieza con la estructura del monorepo, extrae solo la parte relevante
+	if strings.HasPrefix(cleanedRelative, "apps"+string(filepath.Separator)+"ap1-publisher") {
+		parts := strings.Split(cleanedRelative, string(filepath.Separator))
+		if len(parts) > 2 {
+			cleanedRelative = filepath.Join(parts[2:]...)
+		}
+	}
+
+	// Si es una ruta relativa simple (ej. "./runtime/temp"), la resuelve en el directorio base
+	return filepath.Clean(filepath.Join(base, cleanedRelative))
 }
