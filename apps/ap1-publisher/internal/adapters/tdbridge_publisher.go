@@ -47,7 +47,7 @@ func BuildJDF(job models.DiscJob, requestedCopies ...int) ([]byte, error) {
 	var out strings.Builder
 	fmt.Fprintf(&out, "JOB_ID=%s\r\n", job.ID)
 	fmt.Fprintf(&out, "COPIES=%d\r\n", copies)
-	out.WriteString("DISC_TYPE=CD\r\nFORMAT=JOLIET\r\n")
+	out.WriteString("DISC_TYPE=DVD\r\nFORMAT=UDF102\r\n")
 	fmt.Fprintf(&out, "DATA=%s\tdata\r\n", job.DataPath)
 	fmt.Fprintf(&out, "DATA=%s\tAP2\r\n", job.ViewerPath)
 	fmt.Fprintf(&out, "DATA=%s\tstudy.json\r\n", job.ManifestPath)
