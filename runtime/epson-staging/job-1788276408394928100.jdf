@@ -1,0 +1,8 @@
+JOB_ID=job-1788276408394928100
+COPIES=1
+DISC_TYPE=DVD
+FORMAT=JOLIET
+DATA=C:\Users\HP VICTUS\Desktop\bridge\runtime\temp\5e0f30ee-acead3bb-36c11e3a-1cd75678-675f086b\data	data
+DATA=C:\Users\HP VICTUS\Desktop\bridge\runtime\temp\5e0f30ee-acead3bb-36c11e3a-1cd75678-675f086b\AP2	AP2
+DATA=C:\Users\HP VICTUS\Desktop\bridge\runtime\temp\5e0f30ee-acead3bb-36c11e3a-1cd75678-675f086b\study.dat	study.json
+LABEL=C:\Users\HP VICTUS\Desktop\bridge\runtime\temp\5e0f30ee-acead3bb-36c11e3a-1cd75678-675f086b\label\label.png
