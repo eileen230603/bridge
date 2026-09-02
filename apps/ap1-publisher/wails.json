@@ -1,1 +1,10 @@
-{"$schema":"https://wails.io/schemas/config.v2.json","name":"DICOM Disc Publisher","outputfilename":"DICOM Disc Publisher","frontend:install":"npm install","frontend:build":"npm run build","frontend:dev:watcher":"npm run dev","frontend:dev:serverUrl":"auto","author":{"name":"DicomDiscSuite"}}
+{
+  "$schema": "https://wails.io/schemas/config.v2.json",
+  "name": "DICOM Disc Publisher",
+  "outputfilename": "DICOM Disc Publisher",
+  "frontend:install": "npm install",
+  "frontend:build": "npm run build",
+  "frontend:dev:watcher": "npm run dev",
+  "frontend:dev:serverUrl": "auto",
+  "author": { "name": "DicomDiscSuite" }
+}
