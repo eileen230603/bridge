@@ -49,23 +49,11 @@ header {
   color: #8da4b5;
   margin-top: 4px;
 }
-<<<<<<< HEAD
-.mark {
-  display: grid;
-  place-items: center;
-  width: 38px;
-  height: 38px;
-  border-radius: 10px;
-  background: #13b8a6;
-  font-weight: 800;
-  font-size: 21px;
-=======
 .brandLogo {
   display: block;
   width: 54px;
   height: 54px;
   object-fit: contain;
->>>>>>> origin/eileen
 }
 .settings {
   background: transparent;
@@ -161,12 +149,9 @@ main {
   font-weight: 700;
   cursor: pointer;
 }
-<<<<<<< HEAD
-=======
 .filters .cancelSearch {
   background: #b93838;
 }
->>>>>>> origin/eileen
 .panel {
   background: #fff;
   border: 1px solid #dce5eb;
@@ -192,8 +177,6 @@ main {
   color: #728391;
   font-size: 12px;
 }
-<<<<<<< HEAD
-=======
 .studySearch {
   display: flex;
   align-items: center;
@@ -214,7 +197,6 @@ main {
   font-weight: 700;
   cursor: pointer;
 }
->>>>>>> origin/eileen
 .tr {
   display: grid;
   grid-template-columns: 1.5fr 0.85fr 0.65fr 1.25fr 0.55fr 0.8fr;
@@ -336,9 +318,3 @@ main {
     display: none;
   }
 }
-<<<<<<< HEAD
-=======
-
-
-
->>>>>>> origin/eileen

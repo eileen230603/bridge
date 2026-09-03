@@ -19,3 +19,4 @@ runtime/completed/*
 !runtime/completed/.gitkeep
 runtime/logs/*
 !runtime/logs/.gitkeep
+runtime/

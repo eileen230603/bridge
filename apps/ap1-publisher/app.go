@@ -96,21 +96,41 @@ func resolveAP1ConfigPath(explicit, executable, workDir string) (string, bool) {
 		return filepath.Clean(explicit), true
 	}
 
-	candidates := []string{filepath.Join(workDir, "config.json")}
+	// 1. Determinar el directorio base del ejecutable
+	executableDir := ""
 	if executable != "" {
-		executableDir := filepath.Dir(executable)
+		executableDir = filepath.Dir(executable)
+		// Si se ejecuta dentro de un bundle de macOS (.app), subir al directorio donde está el .app
+		if strings.Contains(executableDir, ".app/Contents/MacOS") {
+			executableDir = filepath.Join(executableDir, "..", "..", "..")
+		}
+	}
+
+	// 2. Definir lista de candidatos prioritarios
+	candidates := []string{
+		filepath.Join(workDir, "config.json"),
+	}
+	if executableDir != "" {
 		candidates = append(candidates,
 			filepath.Join(executableDir, "config.json"),
 			filepath.Join(executableDir, "..", "..", "config.json"),
 		)
 	}
 	candidates = append(candidates, filepath.Join(workDir, "apps", "ap1-publisher", "config.json"))
+
+	// 3. Buscar un config.json existente
 	for _, candidate := range candidates {
 		if info, err := os.Stat(candidate); err == nil && !info.IsDir() {
 			return filepath.Clean(candidate), true
 		}
 	}
-	return "", false
+
+	// 4. Si NO existe el archivo, retornar una ruta válida de fallback
+	// en lugar de "embedded config.json" para permitir escribir
+	if executableDir != "" {
+		return filepath.Join(executableDir, "config.json"), false
+	}
+	return filepath.Join(workDir, "config.json"), false
 }
 func (a *App) startup(ctx context.Context) {
 	a.ctx = ctx

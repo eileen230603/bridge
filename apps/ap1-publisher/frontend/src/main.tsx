@@ -4,10 +4,7 @@ import "./style.css";
 import "./jobs.css";
 import "./settings.css";
 import { SplashScreen, StartupError } from "./components/SplashScreen";
-<<<<<<< HEAD
-=======
 import medicareLogo from "./assets/MEDICARESOFTPNG.png";
->>>>>>> origin/eileen
 type Study = {
   studyInstanceUID: string;
   patientName: string;
@@ -44,20 +41,12 @@ type ServerConfig = {
   timeoutSeconds: number;
 };
 type ConnectionTestResult = { status: string; message: string };
-<<<<<<< HEAD
-
-const api = () => window.go?.main?.App;
-
-const MINIMUM_SPLASH_MS = 4_000;
-const SPLASH_FADE_MS = 200;
-=======
 type DiscLabelConfig = { hospitalName: string; logoPath: string };
 
 const api = () => window.go?.main?.App;
 
 const MINIMUM_SPLASH_MS = 6_000;
 const SPLASH_FADE_MS = 300;
->>>>>>> origin/eileen
 const delay = (milliseconds: number) => new Promise<void>((resolve) => window.setTimeout(resolve, milliseconds));
 
 function App({ initialStatus, initialJobs }: { initialStatus: SystemStatus; initialJobs: DiscJob[] }) {
@@ -66,10 +55,7 @@ function App({ initialStatus, initialJobs }: { initialStatus: SystemStatus; init
   const [from, setFrom] = React.useState(prior);
   const [to, setTo] = React.useState(today);
   const [studies, setStudies] = React.useState<Study[]>([]);
-<<<<<<< HEAD
-=======
   const [studyQuery, setStudyQuery] = React.useState("");
->>>>>>> origin/eileen
   const [jobs, setJobs] = React.useState<DiscJob[]>(initialJobs);
   const [loading, setLoading] = React.useState(false);
   const [submittingStudies, setSubmittingStudies] = React.useState<Set<string>>(
@@ -86,20 +72,6 @@ function App({ initialStatus, initialJobs }: { initialStatus: SystemStatus; init
     host: "192.168.0.102",
     port: 4000,
     timeoutSeconds: 60,
-<<<<<<< HEAD
-  });
-  const [connection, setConnection] = React.useState<ConnectionTestResult>({
-    status: "No probado",
-    message: "",
-  });
-  const [settingsBusy, setSettingsBusy] = React.useState(false);
-  async function openSettings() {
-    const value = await api()?.GetServerConfig();
-    if (value) setServerConfig(value);
-    setConnection({ status: "No probado", message: "" });
-    setSettingsOpen(true);
-  }
-=======
   });
   const [discLabelConfig, setDiscLabelConfig] = React.useState<DiscLabelConfig>({ hospitalName: "", logoPath: "" });
   const [labelPreview, setLabelPreview] = React.useState("");
@@ -146,7 +118,6 @@ function App({ initialStatus, initialJobs }: { initialStatus: SystemStatus; init
       window.clearTimeout(timer);
     };
   }, [settingsOpen, discLabelConfig]);
->>>>>>> origin/eileen
   async function testConnection() {
     setSettingsBusy(true);
     try {
@@ -165,10 +136,7 @@ function App({ initialStatus, initialJobs }: { initialStatus: SystemStatus; init
     setSettingsBusy(true);
     try {
       await api()?.SaveServerConfig(serverConfig);
-<<<<<<< HEAD
-=======
       await api()?.SaveDiscLabelConfig(discLabelConfig);
->>>>>>> origin/eileen
       setSettingsOpen(false);
       await refreshStatus();
       setMessage("Configuración del servidor guardada.");
@@ -358,11 +326,7 @@ function App({ initialStatus, initialJobs }: { initialStatus: SystemStatus; init
               <span>Imágenes</span>
               <span></span>
             </div>
-<<<<<<< HEAD
-            {studies.map((s) => {
-=======
             {filteredStudies.map((s) => {
->>>>>>> origin/eileen
               const studyJobs = jobs.filter(
                 (job) => job.studyInstanceUID === s.studyInstanceUID,
               );
@@ -503,14 +467,10 @@ function App({ initialStatus, initialJobs }: { initialStatus: SystemStatus; init
             aria-modal="true"
             aria-labelledby="settings-title"
           >
-<<<<<<< HEAD
-            <h2 id="settings-title">CONFIGURACIÓN DEL SERVIDOR</h2>
-=======
             <h2 id="settings-title">CONFIGURACIÓN</h2>
             <div className="settingsGrid">
             <section className="settingsSection">
             <h3>Servidor de estudios</h3>
->>>>>>> origin/eileen
             <label>
               Servidor / IP
               <input
@@ -581,8 +541,6 @@ function App({ initialStatus, initialJobs }: { initialStatus: SystemStatus; init
               Estado: ● {connection.status}
               {connection.message && <small>{connection.message}</small>}
             </div>
-<<<<<<< HEAD
-=======
             </section>
             <section className="settingsSection discLabelSettings">
               <h3>Etiqueta del disco</h3>
@@ -619,7 +577,6 @@ function App({ initialStatus, initialJobs }: { initialStatus: SystemStatus; init
               </small>
             </section>
             </div>
->>>>>>> origin/eileen
             <div className="modalActions">
               <button
                 className="cancelButton"
@@ -712,8 +669,3 @@ function friendlyStartupError(error: unknown) {
 }
 
 createRoot(document.getElementById("root")!).render(<Root />);
-<<<<<<< HEAD
-=======
-
-
->>>>>>> origin/eileen
