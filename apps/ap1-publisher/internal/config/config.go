@@ -14,15 +14,19 @@ import (
 )
 
 type Config struct {
-	TemporaryDirectory string         `json:"temporaryDirectory"`
-	CompletedDirectory string         `json:"completedDirectory"`
-	LogFile            string         `json:"logFile"`
-	StudyAPI           StudyAPIConfig `json:"studyApi"`
-	Epson              EpsonConfig    `json:"epson"`
-	CleanupAfterHours  int            `json:"cleanupAfterHours"`
-	CleanupEnabled     bool           `json:"cleanupEnabled"`
+	TemporaryDirectory string          `json:"temporaryDirectory"`
+	CompletedDirectory string          `json:"completedDirectory"`
+	LogFile            string          `json:"logFile"`
+	StudyAPI           StudyAPIConfig  `json:"studyApi"`
+	Epson              EpsonConfig     `json:"epson"`
+	DiscLabel          DiscLabelConfig `json:"discLabel"`
+	CleanupAfterHours  int             `json:"cleanupAfterHours"`
+	CleanupEnabled     bool            `json:"cleanupEnabled"`
 }
-
+type DiscLabelConfig struct {
+	HospitalName string `json:"hospitalName"`
+	LogoPath     string `json:"logoPath"`
+}
 type ServerConfig struct {
 	Protocol          string `json:"protocol"`
 	Host              string `json:"host"`
@@ -60,7 +64,6 @@ func (c ServerConfig) Validate() error {
 	}
 	return nil
 }
-
 func (c ServerConfig) BaseAddress() (string, error) {
 	if c.Protocol == "" && c.Host == "" && c.BaseURL != "" {
 		migrateLegacyServerConfig(&c)
@@ -89,14 +92,19 @@ func Load(path string) (Config, error) {
 	}
 	return LoadBytes(b, filepath.Dir(path))
 }
-
-// LoadBytes parses an embedded configuration and resolves its relative paths.
+// LoadBytes parses an embedded configuration and resolves its relative paths
+// against baseDir in the same way Load resolves paths beside a config file.
 func LoadBytes(b []byte, baseDir string) (Config, error) {
 	var c Config
 	e := json.Unmarshal(b, &c)
 	if e != nil {
 		return c, e
 	}
+	c.TemporaryDirectory = resolve(baseDir, c.TemporaryDirectory)
+	c.CompletedDirectory = resolve(baseDir, c.CompletedDirectory)
+	c.LogFile = resolveOptional(baseDir, c.LogFile)
+	c.Epson.MonitoringFolder = resolveOptional(baseDir, c.Epson.MonitoringFolder)
+	c.Epson.StagingDirectory = resolveOptional(baseDir, c.Epson.StagingDirectory)
 
 	// Sanitiza las rutas si fueron generadas con prefijos cross-platform (p. ej. /Users/... en Windows)
 	c.TemporaryDirectory = sanitizeCrossPath(c.TemporaryDirectory)
@@ -105,19 +113,13 @@ func LoadBytes(b []byte, baseDir string) (Config, error) {
 	c.Epson.MonitoringFolder = sanitizeCrossPath(c.Epson.MonitoringFolder)
 	c.Epson.StagingDirectory = sanitizeCrossPath(c.Epson.StagingDirectory)
 
-	c.TemporaryDirectory = resolve(baseDir, c.TemporaryDirectory)
-	c.CompletedDirectory = resolve(baseDir, c.CompletedDirectory)
-	c.LogFile = resolveOptional(baseDir, c.LogFile)
-	c.Epson.MonitoringFolder = resolveOptional(baseDir, c.Epson.MonitoringFolder)
-	c.Epson.StagingDirectory = resolveOptional(baseDir, c.Epson.StagingDirectory)
-
 	// Regla de oro para Windows: la carpeta de Epson siempre apunta a C:\ EPSON
 	if runtime.GOOS == "windows" {
 		if c.Epson.MonitoringFolder == "" || strings.Contains(c.Epson.MonitoringFolder, "runtime") {
 			c.Epson.MonitoringFolder = `C:\EPSON\TDBridge\Orders`
 		}
 	}
-
+	c.DiscLabel.LogoPath = resolveOptional(baseDir, c.DiscLabel.LogoPath)
 	if c.Epson.DefaultCopies == 0 {
 		c.Epson.DefaultCopies = 1
 	}
@@ -162,7 +164,6 @@ func sanitizeCrossPath(p string) string {
 	}
 	return p
 }
-
 func resolveOptional(base, p string) string {
 	if p == "" {
 		return ""

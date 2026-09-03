@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"io"
@@ -18,6 +19,7 @@ import (
 	"github.com/local/dicom-disc-suite/apps/ap1-publisher/internal/config"
 	"github.com/local/dicom-disc-suite/apps/ap1-publisher/internal/services"
 	"github.com/local/dicom-disc-suite/shared/models"
+	wailsruntime "github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
 type App struct {
@@ -33,6 +35,8 @@ type App struct {
 	studies          map[string]models.Study
 	jobs             []models.DiscJob
 	studyServerState string
+	searchCancel     context.CancelFunc
+	searchID         uint64
 }
 
 type SystemStatus struct {
@@ -167,6 +171,94 @@ func (a *App) SaveServerConfig(server config.ServerConfig) error {
 	return nil
 }
 
+func (a *App) GetDiscLabelConfig() config.DiscLabelConfig {
+	a.mu.RLock()
+	defer a.mu.RUnlock()
+	return a.cfg.DiscLabel
+}
+
+func (a *App) SelectDiscLabelLogo() (string, error) {
+	path, err := wailsruntime.OpenFileDialog(a.ctx, wailsruntime.OpenDialogOptions{
+		Title: "Seleccionar logo del hospital",
+		Filters: []wailsruntime.FileFilter{{
+			DisplayName: "Imágenes PNG o JPG",
+			Pattern:     "*.png;*.jpg;*.jpeg",
+		}},
+	})
+	if err != nil {
+		return "", err
+	}
+	return path, nil
+}
+
+func (a *App) GetDiscLabelPreview(labelConfig config.DiscLabelConfig) (string, error) {
+	raw, err := services.GenerateDiscLabelPNG(models.Study{
+		PatientName:      "Paciente de ejemplo",
+		PatientID:        "H-001234",
+		StudyDescription: "Estudio de ejemplo",
+		Modality:         "CT",
+		StudyDate:        time.Now().Format("2006-01-02"),
+	}, services.DiscLabelBranding{
+		HospitalName:  strings.TrimSpace(labelConfig.HospitalName),
+		LogoPath:      strings.TrimSpace(labelConfig.LogoPath),
+		SymphonyLogo:  symphonyLogo,
+		MediGlobeLogo: mediglobeLogo,
+	})
+	if err != nil {
+		return "", errors.New("No se pudo generar la vista previa de la etiqueta.")
+	}
+	return "data:image/png;base64," + base64.StdEncoding.EncodeToString(raw), nil
+}
+
+func (a *App) SaveDiscLabelConfig(labelConfig config.DiscLabelConfig) error {
+	labelConfig.HospitalName = strings.TrimSpace(labelConfig.HospitalName)
+	labelConfig.LogoPath = strings.TrimSpace(labelConfig.LogoPath)
+	if _, err := a.GetDiscLabelPreview(labelConfig); err != nil {
+		return err
+	}
+	if labelConfig.LogoPath != "" {
+		storedPath, err := storeDiscLabelLogo(a.configPath, labelConfig.LogoPath)
+		if err != nil {
+			return errors.New("No se pudo guardar el logo del hospital.")
+		}
+		labelConfig.LogoPath = storedPath
+	}
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	updated := a.cfg
+	updated.DiscLabel = labelConfig
+	if err := config.Save(a.configPath, updated); err != nil {
+		return errors.New("No se pudo guardar la configuración de la etiqueta.")
+	}
+	a.cfg = updated
+	return nil
+}
+
+func storeDiscLabelLogo(configPath, sourcePath string) (string, error) {
+	extension := strings.ToLower(filepath.Ext(sourcePath))
+	if extension != ".png" && extension != ".jpg" && extension != ".jpeg" {
+		return "", errors.New("unsupported hospital logo format")
+	}
+	assetsDir := filepath.Join(filepath.Dir(configPath), "assets")
+	if err := os.MkdirAll(assetsDir, 0o755); err != nil {
+		return "", err
+	}
+	targetPath := filepath.Join(assetsDir, "hospital-logo"+extension)
+	sourceAbsolute, _ := filepath.Abs(sourcePath)
+	targetAbsolute, _ := filepath.Abs(targetPath)
+	if strings.EqualFold(sourceAbsolute, targetAbsolute) {
+		return targetPath, nil
+	}
+	raw, err := os.ReadFile(sourcePath)
+	if err != nil {
+		return "", err
+	}
+	if err := os.WriteFile(targetPath, raw, 0o644); err != nil {
+		return "", err
+	}
+	return targetPath, nil
+}
+
 func (a *App) TestServerConnection(server config.ServerConfig) (result ConnectionTestResult) {
 	defer func() {
 		a.mu.Lock()
@@ -220,8 +312,29 @@ func (a *App) SearchStudies(from, to string) ([]models.Study, error) {
 	if !a.cfg.StudyAPI.IsConfigured() {
 		return nil, errors.New("Servidor de estudios no configurado")
 	}
-	studies, e := a.studyRepo.SearchStudies(a.ctx, f, t)
+	a.mu.Lock()
+	if a.searchCancel != nil {
+		a.searchCancel()
+	}
+	a.searchID++
+	searchID := a.searchID
+	ctx, cancel := context.WithCancel(a.ctx)
+	a.searchCancel = cancel
+	a.mu.Unlock()
+	defer func() {
+		cancel()
+		a.mu.Lock()
+		if a.searchID == searchID {
+			a.searchCancel = nil
+		}
+		a.mu.Unlock()
+	}()
+
+	studies, e := a.studyRepo.SearchStudies(ctx, f, t)
 	if e != nil {
+		if errors.Is(e, context.Canceled) {
+			return nil, errors.New("Búsqueda cancelada.")
+		}
 		a.mu.Lock()
 		a.studyServerState = "Error"
 		a.mu.Unlock()
@@ -239,15 +352,25 @@ func (a *App) SearchStudies(from, to string) ([]models.Study, error) {
 	a.mu.Unlock()
 	return studies, nil
 }
+
+func (a *App) CancelSearch() {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	if a.searchCancel != nil {
+		a.searchCancel()
+	}
+}
+
 func (a *App) CreateDiscJob(uid string) (models.DiscJob, error) {
 	a.mu.RLock()
 	study, ok := a.studies[uid]
+	labelConfig := a.cfg.DiscLabel
 	a.mu.RUnlock()
 	if !ok {
 		return models.DiscJob{}, fmt.Errorf("study not found; run search first")
 	}
 	a.logger.Info("Study selected", "study_uid", uid)
-	job, e := a.builder.Build(a.ctx, study)
+	job, e := a.builder.Build(a.ctx, study, services.DiscLabelBranding{HospitalName: labelConfig.HospitalName, LogoPath: labelConfig.LogoPath, SymphonyLogo: symphonyLogo, MediGlobeLogo: mediglobeLogo})
 	if e != nil {
 		a.logger.Error("Study package preparation failed", "study_uid", uid, "job_id", job.ID, "error", e)
 		if errors.Is(e, adapters.ErrStudyDownload) {

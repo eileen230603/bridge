@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 import { useEffect, useState } from "react";
 import symphonyLogo from "../assets/logo.png";
 import "./SplashScreen.css";
@@ -25,6 +26,15 @@ export function SplashScreen({ exiting = false }: { exiting?: boolean }) {
     <main className={`startupScreen${exiting ? " startupScreenExit" : ""}`} role="status" aria-live="polite">
       <div className="startupAmbient" aria-hidden="true" />
       <div className="startupParticles" aria-hidden="true">{Array.from({ length: 11 }, (_, index) => <i key={index} />)}</div>
+=======
+import symphonyLogo from "../assets/logo.png";
+import "./SplashScreen.css";
+
+export function SplashScreen({ exiting = false }: { exiting?: boolean }) {
+  return (
+    <main className={`startupScreen${exiting ? " startupScreenExit" : ""}`} role="status" aria-live="polite">
+      <div className="startupAmbient" aria-hidden="true" />
+>>>>>>> origin/eileen
       <div className="startupWaves" aria-hidden="true">
         <svg viewBox="0 0 1600 240" preserveAspectRatio="none">
           <path className="wave waveOne" d="M-80 125 C170 20 330 225 590 120 S1010 20 1240 128 S1540 205 1720 92" />
@@ -39,12 +49,18 @@ export function SplashScreen({ exiting = false }: { exiting?: boolean }) {
         <p className="startupProduct">DICOM DISC PUBLISHER</p>
         <div className="startupSpinner" aria-hidden="true" />
         <p className="startupTitle">Iniciando sistema...</p>
+<<<<<<< HEAD
         <p className="startupDetail">{detail}</p>
         <div className="startupProgress" aria-label={`Progreso ${Math.round(progress)}%`}>
           <div className="startupProgressFill" style={{ width: `${progress}%` }}><i /></div>
         </div>
         <p className="startupWait">Por favor espere</p>
       </section>
+=======
+        <p className="startupDetail">Preparando DICOM Disc Publisher</p>
+      </section>
+      <p className="startupBrand">Symphony Medical</p>
+>>>>>>> origin/eileen
     </main>
   );
 }

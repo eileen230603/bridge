@@ -27,4 +27,13 @@ func TestGenerateDiscLabelCreatesRecommendedSizePNG(t *testing.T) {
 	if img.Bounds().Dx() != labelSize || img.Bounds().Dy() != labelSize {
 		t.Fatalf("unexpected label size: %v", img.Bounds())
 	}
+	if _, _, _, alpha := img.At(0, 0).RGBA(); alpha != 0 {
+		t.Fatal("outside of the physical disc must be transparent")
+	}
+	if _, _, _, alpha := img.At(labelSize/2, labelSize/2).RGBA(); alpha != 0 {
+		t.Fatal("center hole must be transparent")
+	}
+	if _, _, _, alpha := img.At(labelSize/2, 100).RGBA(); alpha == 0 {
+		t.Fatal("printable disc surface must be opaque")
+	}
 }

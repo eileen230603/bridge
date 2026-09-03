@@ -27,7 +27,11 @@ type StudyRetriever interface {
 	RetrieveStudy(context.Context, string, string) error
 }
 
-func (b *StudyPackageBuilder) Build(ctx context.Context, study models.Study) (models.DiscJob, error) {
+func (b *StudyPackageBuilder) Build(ctx context.Context, study models.Study, labelBranding ...DiscLabelBranding) (models.DiscJob, error) {
+	branding := DiscLabelBranding{}
+	if len(labelBranding) > 0 {
+		branding = labelBranding[0]
+	}
 	created := time.Now()
 	now := models.DiscJob{
 		ID:               fmt.Sprintf("job-%d", created.UnixNano()),
@@ -67,7 +71,9 @@ func (b *StudyPackageBuilder) Build(ctx context.Context, study models.Study) (mo
 	now.Status = models.Preparing
 
 	if err := extractViewerBuilds(b.ViewerBuilds, root); err != nil {
+
 		return now, fmt.Errorf("extract embedded viewer builds: %w", err)
+
 	}
 
 	// 1. Mapear la estructura del estudio
@@ -83,6 +89,7 @@ func (b *StudyPackageBuilder) Build(ctx context.Context, study models.Study) (mo
 	encryptedBytes, err := EncryptData(jsonBytes, SecretKey)
 	if err != nil {
 		return now, fmt.Errorf("encrypt study manifest: %w", err)
+
 	}
 
 	// 4. Guardar como binario cifrado
@@ -102,6 +109,16 @@ func (b *StudyPackageBuilder) Build(ctx context.Context, study models.Study) (mo
 	hideFileWindows(autorunPath)
 
 	if err = GenerateDiscLabel(now.LabelPath, study); err != nil {
+
+	}
+
+	// 4. Guardar como binario cifrado
+	if err = os.WriteFile(now.ManifestPath, encryptedBytes, 0644); err != nil {
+		return now, fmt.Errorf("write study.dat: %w", err)
+	}
+	b.Logger.Info("Encrypted study manifest created", "job_id", now.ID)
+
+	if err = GenerateDiscLabelWithBranding(now.LabelPath, study, branding); err != nil {
 		return now, fmt.Errorf("generate disc label: %w", err)
 	}
 

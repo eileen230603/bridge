@@ -69,6 +69,9 @@ func (r *HttpStudyRepository) SearchStudies(ctx context.Context, from, to time.T
 	_, client := r.snapshot()
 	resp, err := client.Do(req)
 	if err != nil {
+		if ctx.Err() != nil {
+			return nil, ctx.Err()
+		}
 		return nil, ErrStudyServerUnavailable
 	}
 	defer resp.Body.Close()

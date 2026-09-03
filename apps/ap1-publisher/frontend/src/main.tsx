@@ -4,6 +4,10 @@ import "./style.css";
 import "./jobs.css";
 import "./settings.css";
 import { SplashScreen, StartupError } from "./components/SplashScreen";
+<<<<<<< HEAD
+=======
+import medicareLogo from "./assets/MEDICARESOFTPNG.png";
+>>>>>>> origin/eileen
 type Study = {
   studyInstanceUID: string;
   patientName: string;
@@ -40,11 +44,20 @@ type ServerConfig = {
   timeoutSeconds: number;
 };
 type ConnectionTestResult = { status: string; message: string };
+<<<<<<< HEAD
 
 const api = () => window.go?.main?.App;
 
 const MINIMUM_SPLASH_MS = 4_000;
 const SPLASH_FADE_MS = 200;
+=======
+type DiscLabelConfig = { hospitalName: string; logoPath: string };
+
+const api = () => window.go?.main?.App;
+
+const MINIMUM_SPLASH_MS = 6_000;
+const SPLASH_FADE_MS = 300;
+>>>>>>> origin/eileen
 const delay = (milliseconds: number) => new Promise<void>((resolve) => window.setTimeout(resolve, milliseconds));
 
 function App({ initialStatus, initialJobs }: { initialStatus: SystemStatus; initialJobs: DiscJob[] }) {
@@ -53,6 +66,10 @@ function App({ initialStatus, initialJobs }: { initialStatus: SystemStatus; init
   const [from, setFrom] = React.useState(prior);
   const [to, setTo] = React.useState(today);
   const [studies, setStudies] = React.useState<Study[]>([]);
+<<<<<<< HEAD
+=======
+  const [studyQuery, setStudyQuery] = React.useState("");
+>>>>>>> origin/eileen
   const [jobs, setJobs] = React.useState<DiscJob[]>(initialJobs);
   const [loading, setLoading] = React.useState(false);
   const [submittingStudies, setSubmittingStudies] = React.useState<Set<string>>(
@@ -69,6 +86,7 @@ function App({ initialStatus, initialJobs }: { initialStatus: SystemStatus; init
     host: "192.168.0.102",
     port: 4000,
     timeoutSeconds: 60,
+<<<<<<< HEAD
   });
   const [connection, setConnection] = React.useState<ConnectionTestResult>({
     status: "No probado",
@@ -81,6 +99,54 @@ function App({ initialStatus, initialJobs }: { initialStatus: SystemStatus; init
     setConnection({ status: "No probado", message: "" });
     setSettingsOpen(true);
   }
+=======
+  });
+  const [discLabelConfig, setDiscLabelConfig] = React.useState<DiscLabelConfig>({ hospitalName: "", logoPath: "" });
+  const [labelPreview, setLabelPreview] = React.useState("");
+  const [labelError, setLabelError] = React.useState("");
+  const [connection, setConnection] = React.useState<ConnectionTestResult>({
+    status: "No probado",
+    message: "",
+  });
+  const [settingsBusy, setSettingsBusy] = React.useState(false);
+  async function openSettings() {
+    const backend = api();
+    const [server, labelConfig] = await Promise.all([
+      backend?.GetServerConfig(),
+      backend?.GetDiscLabelConfig(),
+    ]);
+    if (server) setServerConfig(server);
+    if (labelConfig) setDiscLabelConfig(labelConfig);
+    setConnection({ status: "No probado", message: "" });
+    setSettingsOpen(true);
+  }
+  async function selectDiscLabelLogo() {
+    const path = await api()?.SelectDiscLabelLogo();
+    if (path) setDiscLabelConfig((current) => ({ ...current, logoPath: path }));
+  }
+  React.useEffect(() => {
+    if (!settingsOpen) return;
+    let active = true;
+    const timer = window.setTimeout(async () => {
+      try {
+        const preview = await api()?.GetDiscLabelPreview(discLabelConfig);
+        if (active) {
+          setLabelPreview(preview ?? "");
+          setLabelError("");
+        }
+      } catch {
+        if (active) {
+          setLabelPreview("");
+          setLabelError("No se pudo cargar el logo seleccionado.");
+        }
+      }
+    }, 250);
+    return () => {
+      active = false;
+      window.clearTimeout(timer);
+    };
+  }, [settingsOpen, discLabelConfig]);
+>>>>>>> origin/eileen
   async function testConnection() {
     setSettingsBusy(true);
     try {
@@ -99,6 +165,10 @@ function App({ initialStatus, initialJobs }: { initialStatus: SystemStatus; init
     setSettingsBusy(true);
     try {
       await api()?.SaveServerConfig(serverConfig);
+<<<<<<< HEAD
+=======
+      await api()?.SaveDiscLabelConfig(discLabelConfig);
+>>>>>>> origin/eileen
       setSettingsOpen(false);
       await refreshStatus();
       setMessage("Configuración del servidor guardada.");
@@ -130,6 +200,24 @@ function App({ initialStatus, initialJobs }: { initialStatus: SystemStatus; init
       setLoading(false);
     }
   }
+  async function cancelSearch() {
+    await api()?.CancelSearch();
+    setMessage("Búsqueda cancelada.");
+  }
+  const normalizedStudyQuery = studyQuery.trim().toLocaleLowerCase("es");
+  const filteredStudies = normalizedStudyQuery
+    ? studies.filter((study) =>
+        [
+          study.patientName,
+          study.studyDescription,
+          study.modality,
+          study.studyDate,
+          study.studyInstanceUID,
+        ].some((value) =>
+          String(value ?? "").toLocaleLowerCase("es").includes(normalizedStudyQuery),
+        ),
+      )
+    : studies;
   async function publish(s: Study) {
     setPressedStudies((current) => {
       const next = new Set(current);
@@ -178,10 +266,9 @@ function App({ initialStatus, initialJobs }: { initialStatus: SystemStatus; init
     <div className="shell appEnter">
       <header>
         <div className="brand">
-          <span className="mark">D</span>
+          <img className="brandLogo" src={medicareLogo} alt="Medicare Soft" />
           <div>
-            <b>DICOM DISC PUBLISHER</b>
-            <small>Gestión de medios médicos</small>
+            <b>SYMPHONY MEDIA EXPORT</b>
           </div>
         </div>
         <button className="settings" onClick={openSettings}>
@@ -217,9 +304,13 @@ function App({ initialStatus, initialJobs }: { initialStatus: SystemStatus; init
                 onChange={(e) => setTo(e.target.value)}
               />
             </label>
-            <button onClick={search} disabled={loading}>
-              {loading ? "Buscando…" : "Buscar estudios"}
-            </button>
+            {loading ? (
+              <button className="cancelSearch" onClick={cancelSearch}>
+                Cancelar búsqueda
+              </button>
+            ) : (
+              <button onClick={search}>Buscar estudios</button>
+            )}
           </div>
         </section>
         <section className="systemStatus">
@@ -239,7 +330,24 @@ function App({ initialStatus, initialJobs }: { initialStatus: SystemStatus; init
         <section className="panel studiesPanel">
           <div className="panelTitle">
             <h2>Estudios</h2>
-            <span>{studies.length} resultados</span>
+            <div className="studySearch">
+              <input
+                type="search"
+                value={studyQuery}
+                onChange={(event) => setStudyQuery(event.target.value)}
+                placeholder="Buscar paciente o estudio…"
+                aria-label="Buscar dentro de los estudios"
+              />
+              {studyQuery && (
+                <button onClick={() => setStudyQuery("")} aria-label="Limpiar búsqueda">
+                  Limpiar
+                </button>
+              )}
+              <span>
+                {filteredStudies.length}
+                {studyQuery ? ` de ${studies.length}` : ""} resultados
+              </span>
+            </div>
           </div>
           <div className="table">
             <div className="tr th">
@@ -250,7 +358,11 @@ function App({ initialStatus, initialJobs }: { initialStatus: SystemStatus; init
               <span>Imágenes</span>
               <span></span>
             </div>
+<<<<<<< HEAD
             {studies.map((s) => {
+=======
+            {filteredStudies.map((s) => {
+>>>>>>> origin/eileen
               const studyJobs = jobs.filter(
                 (job) => job.studyInstanceUID === s.studyInstanceUID,
               );
@@ -391,7 +503,14 @@ function App({ initialStatus, initialJobs }: { initialStatus: SystemStatus; init
             aria-modal="true"
             aria-labelledby="settings-title"
           >
+<<<<<<< HEAD
             <h2 id="settings-title">CONFIGURACIÓN DEL SERVIDOR</h2>
+=======
+            <h2 id="settings-title">CONFIGURACIÓN</h2>
+            <div className="settingsGrid">
+            <section className="settingsSection">
+            <h3>Servidor de estudios</h3>
+>>>>>>> origin/eileen
             <label>
               Servidor / IP
               <input
@@ -462,6 +581,45 @@ function App({ initialStatus, initialJobs }: { initialStatus: SystemStatus; init
               Estado: ● {connection.status}
               {connection.message && <small>{connection.message}</small>}
             </div>
+<<<<<<< HEAD
+=======
+            </section>
+            <section className="settingsSection discLabelSettings">
+              <h3>Etiqueta del disco</h3>
+              <label>
+                Nombre del hospital
+                <input
+                  value={discLabelConfig.hospitalName}
+                  placeholder="Nombre del hospital"
+                  onChange={(event) => setDiscLabelConfig((current) => ({ ...current, hospitalName: event.target.value }))}
+                />
+              </label>
+              <label>
+                Logo del hospital
+                <div className="logoPicker">
+                  <input value={discLabelConfig.logoPath} placeholder="Identidad Symphony predeterminada" readOnly />
+                  <button className="testButton" onClick={selectDiscLabelLogo}>Seleccionar</button>
+                  {discLabelConfig.logoPath && (
+                    <button className="cancelButton" onClick={() => setDiscLabelConfig((current) => ({ ...current, logoPath: "" }))}>
+                      Quitar
+                    </button>
+                  )}
+                </div>
+              </label>
+              <div className="labelPreview">
+                {labelPreview ? (
+                  <img src={labelPreview} alt="Vista previa de la etiqueta del disco" />
+                ) : (
+                  <span>Generando vista previa…</span>
+                )}
+              </div>
+              {labelError && <p className="labelError">{labelError}</p>}
+              <small className="labelHint">
+                Sin nombre ni logo personalizado se utilizará la identidad de Symphony.
+              </small>
+            </section>
+            </div>
+>>>>>>> origin/eileen
             <div className="modalActions">
               <button
                 className="cancelButton"
@@ -554,3 +712,8 @@ function friendlyStartupError(error: unknown) {
 }
 
 createRoot(document.getElementById("root")!).render(<Root />);
+<<<<<<< HEAD
+=======
+
+
+>>>>>>> origin/eileen
