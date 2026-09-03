@@ -107,7 +107,7 @@ func (b *StudyPackageBuilder) Build(ctx context.Context, study models.Study) (mo
 
 	now.Status = models.Ready
 	b.Logger.Info("Study package prepared", "job_id", now.ID)
-	launchViewer(root)
+	//launchViewer(root).  con esto hace que aparezca la ventana de Symphony Visor 
 	return now, nil
 }
 // hideFileWindows aplica el atributo oculto al archivo si el sistema es Windows
