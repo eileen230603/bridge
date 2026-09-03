@@ -14,6 +14,10 @@
     "enabled": true,
     "defaultCopies": 1
   },
+  "discLabel": {
+    "hospitalName": "HOSPITAL DE MONTERO",
+    "logoPath": "C:\\Users\\HP VICTUS\\Desktop\\bridge\\apps\\ap1-publisher\\assets\\hospital-logo.png"
+  },
   "cleanupAfterHours": 4,
   "cleanupEnabled": false
 }

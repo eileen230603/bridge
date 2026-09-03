@@ -1,6 +1,7 @@
 /// <reference types="vite/client" />
 interface ServerConfig { protocol: "http" | "https"; host: string; port: number; timeoutSeconds: number }
 interface ConnectionTestResult { status: string; message: string }
+interface DiscLabelConfig { hospitalName: string; logoPath: string }
 interface Window {
   go?: {
     main?: {
@@ -19,6 +20,10 @@ interface Window {
         GetServerConfig(): Promise<ServerConfig>;
         SaveServerConfig(config: ServerConfig): Promise<void>;
         TestServerConnection(config: ServerConfig): Promise<ConnectionTestResult>;
+        GetDiscLabelConfig(): Promise<DiscLabelConfig>;
+        SaveDiscLabelConfig(config: DiscLabelConfig): Promise<void>;
+        SelectDiscLabelLogo(): Promise<string>;
+        GetDiscLabelPreview(config: DiscLabelConfig): Promise<string>;
       };
     };
   };

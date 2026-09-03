@@ -13,13 +13,19 @@ import (
 )
 
 type Config struct {
-	TemporaryDirectory string         `json:"temporaryDirectory"`
-	CompletedDirectory string         `json:"completedDirectory"`
-	LogFile            string         `json:"logFile"`
-	StudyAPI           StudyAPIConfig `json:"studyApi"`
-	Epson              EpsonConfig    `json:"epson"`
-	CleanupAfterHours  int            `json:"cleanupAfterHours"`
-	CleanupEnabled     bool           `json:"cleanupEnabled"`
+	TemporaryDirectory string          `json:"temporaryDirectory"`
+	CompletedDirectory string          `json:"completedDirectory"`
+	LogFile            string          `json:"logFile"`
+	StudyAPI           StudyAPIConfig  `json:"studyApi"`
+	Epson              EpsonConfig     `json:"epson"`
+	DiscLabel          DiscLabelConfig `json:"discLabel"`
+	CleanupAfterHours  int             `json:"cleanupAfterHours"`
+	CleanupEnabled     bool            `json:"cleanupEnabled"`
+}
+
+type DiscLabelConfig struct {
+	HospitalName string `json:"hospitalName"`
+	LogoPath     string `json:"logoPath"`
 }
 
 type ServerConfig struct {
@@ -102,6 +108,7 @@ func LoadBytes(b []byte, baseDir string) (Config, error) {
 	c.LogFile = resolveOptional(baseDir, c.LogFile)
 	c.Epson.MonitoringFolder = resolveOptional(baseDir, c.Epson.MonitoringFolder)
 	c.Epson.StagingDirectory = resolveOptional(baseDir, c.Epson.StagingDirectory)
+	c.DiscLabel.LogoPath = resolveOptional(baseDir, c.DiscLabel.LogoPath)
 	if c.Epson.DefaultCopies == 0 {
 		c.Epson.DefaultCopies = 1
 	}

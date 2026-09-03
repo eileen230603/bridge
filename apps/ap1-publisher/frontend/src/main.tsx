@@ -4,6 +4,7 @@ import "./style.css";
 import "./jobs.css";
 import "./settings.css";
 import { SplashScreen, StartupError } from "./components/SplashScreen";
+import medicareLogo from "./assets/MEDICARESOFTPNG.png";
 type Study = {
   studyInstanceUID: string;
   patientName: string;
@@ -40,6 +41,7 @@ type ServerConfig = {
   timeoutSeconds: number;
 };
 type ConnectionTestResult = { status: string; message: string };
+type DiscLabelConfig = { hospitalName: string; logoPath: string };
 
 const api = () => window.go?.main?.App;
 
@@ -71,17 +73,51 @@ function App({ initialStatus, initialJobs }: { initialStatus: SystemStatus; init
     port: 4000,
     timeoutSeconds: 60,
   });
+  const [discLabelConfig, setDiscLabelConfig] = React.useState<DiscLabelConfig>({ hospitalName: "", logoPath: "" });
+  const [labelPreview, setLabelPreview] = React.useState("");
+  const [labelError, setLabelError] = React.useState("");
   const [connection, setConnection] = React.useState<ConnectionTestResult>({
     status: "No probado",
     message: "",
   });
   const [settingsBusy, setSettingsBusy] = React.useState(false);
   async function openSettings() {
-    const value = await api()?.GetServerConfig();
-    if (value) setServerConfig(value);
+    const backend = api();
+    const [server, labelConfig] = await Promise.all([
+      backend?.GetServerConfig(),
+      backend?.GetDiscLabelConfig(),
+    ]);
+    if (server) setServerConfig(server);
+    if (labelConfig) setDiscLabelConfig(labelConfig);
     setConnection({ status: "No probado", message: "" });
     setSettingsOpen(true);
   }
+  async function selectDiscLabelLogo() {
+    const path = await api()?.SelectDiscLabelLogo();
+    if (path) setDiscLabelConfig((current) => ({ ...current, logoPath: path }));
+  }
+  React.useEffect(() => {
+    if (!settingsOpen) return;
+    let active = true;
+    const timer = window.setTimeout(async () => {
+      try {
+        const preview = await api()?.GetDiscLabelPreview(discLabelConfig);
+        if (active) {
+          setLabelPreview(preview ?? "");
+          setLabelError("");
+        }
+      } catch {
+        if (active) {
+          setLabelPreview("");
+          setLabelError("No se pudo cargar el logo seleccionado.");
+        }
+      }
+    }, 250);
+    return () => {
+      active = false;
+      window.clearTimeout(timer);
+    };
+  }, [settingsOpen, discLabelConfig]);
   async function testConnection() {
     setSettingsBusy(true);
     try {
@@ -100,6 +136,7 @@ function App({ initialStatus, initialJobs }: { initialStatus: SystemStatus; init
     setSettingsBusy(true);
     try {
       await api()?.SaveServerConfig(serverConfig);
+      await api()?.SaveDiscLabelConfig(discLabelConfig);
       setSettingsOpen(false);
       await refreshStatus();
       setMessage("Configuración del servidor guardada.");
@@ -197,10 +234,9 @@ function App({ initialStatus, initialJobs }: { initialStatus: SystemStatus; init
     <div className="shell appEnter">
       <header>
         <div className="brand">
-          <span className="mark">D</span>
+          <img className="brandLogo" src={medicareLogo} alt="Medicare Soft" />
           <div>
-            <b>DICOM DISC PUBLISHER</b>
-            <small>Gestión de medios médicos</small>
+            <b>SYMPHONY MEDIA EXPORT</b>
           </div>
         </div>
         <button className="settings" onClick={openSettings}>
@@ -431,7 +467,10 @@ function App({ initialStatus, initialJobs }: { initialStatus: SystemStatus; init
             aria-modal="true"
             aria-labelledby="settings-title"
           >
-            <h2 id="settings-title">CONFIGURACIÓN DEL SERVIDOR</h2>
+            <h2 id="settings-title">CONFIGURACIÓN</h2>
+            <div className="settingsGrid">
+            <section className="settingsSection">
+            <h3>Servidor de estudios</h3>
             <label>
               Servidor / IP
               <input
@@ -501,6 +540,42 @@ function App({ initialStatus, initialJobs }: { initialStatus: SystemStatus; init
             >
               Estado: ● {connection.status}
               {connection.message && <small>{connection.message}</small>}
+            </div>
+            </section>
+            <section className="settingsSection discLabelSettings">
+              <h3>Etiqueta del disco</h3>
+              <label>
+                Nombre del hospital
+                <input
+                  value={discLabelConfig.hospitalName}
+                  placeholder="Nombre del hospital"
+                  onChange={(event) => setDiscLabelConfig((current) => ({ ...current, hospitalName: event.target.value }))}
+                />
+              </label>
+              <label>
+                Logo del hospital
+                <div className="logoPicker">
+                  <input value={discLabelConfig.logoPath} placeholder="Identidad Symphony predeterminada" readOnly />
+                  <button className="testButton" onClick={selectDiscLabelLogo}>Seleccionar</button>
+                  {discLabelConfig.logoPath && (
+                    <button className="cancelButton" onClick={() => setDiscLabelConfig((current) => ({ ...current, logoPath: "" }))}>
+                      Quitar
+                    </button>
+                  )}
+                </div>
+              </label>
+              <div className="labelPreview">
+                {labelPreview ? (
+                  <img src={labelPreview} alt="Vista previa de la etiqueta del disco" />
+                ) : (
+                  <span>Generando vista previa…</span>
+                )}
+              </div>
+              {labelError && <p className="labelError">{labelError}</p>}
+              <small className="labelHint">
+                Sin nombre ni logo personalizado se utilizará la identidad de Symphony.
+              </small>
+            </section>
             </div>
             <div className="modalActions">
               <button
@@ -594,3 +669,5 @@ function friendlyStartupError(error: unknown) {
 }
 
 createRoot(document.getElementById("root")!).render(<Root />);
+
+
