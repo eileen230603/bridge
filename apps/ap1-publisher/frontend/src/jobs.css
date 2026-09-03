@@ -4,11 +4,14 @@
 
 .job {
   display: grid;
-  grid-template-columns: 1.2fr 1.2fr 1.35fr 1fr;
+  grid-template-columns: 1.5fr 1.25fr 1.35fr 1fr;
   gap: 16px;
-  align-items: start;
-  padding: 16px 22px;
+  align-items: center;
+  min-height: 52px;
+  padding: 10px 22px;
   border-bottom: 1px solid #edf1f4;
+  font-size: 14px; /* Mismo tamaño que Estudios */
+  color: #183044;
 }
 
 .jobHeader {
@@ -23,6 +26,7 @@
   overflow-wrap: anywhere;
   color: #526777;
   font-size: 12px;
+  font-family: inherit; /* Evita cambio de tipografía fuerte */
 }
 
 .jobBadge {
@@ -32,6 +36,7 @@
   background: #e7eef3;
   color: #526777;
   font-size: 11px;
+  font-weight: 700;
 }
 
 .status-QueuedForEpson {
@@ -56,24 +61,89 @@
 }
 
 .job details {
-  margin-top: 7px;
+  margin-top: 4px;
   color: #a52b2b;
   font-size: 11px;
 }
 
 .job summary {
   cursor: pointer;
+  font-weight: 600;
 }
 
 .job small {
   display: block;
-  margin-top: 5px;
+  margin-top: 4px;
   overflow-wrap: anywhere;
 }
 
 .job .friendlyError {
   color: #a52b2b;
-  max-width: 260px;
+  max-width: 200px;
+  font-size: 11px;
+  line-height: 1.3;
+  margin-top: 4px;
+}
+.job span:last-child {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+/* Limitar la altura del panel de Trabajos para que no empuje a Estudios */
+.panel.jobs {
+  flex-shrink: 0;
+  height: 240px; /* Altura constante */
+  max-height: 240px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.jobList {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* Cabecera de Trabajos fija */
+.jobHeader {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: #f8fafb;
+  color: #8494a0;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  min-height: 42px;
+  padding: 0 22px;
+  border-bottom: 1px solid #edf1f4;
+}
+
+/* Scroll interno de los registros de Trabajos */
+.jobBody {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-gutter: stable;
+}
+
+/* Personalización del scrollbar (igual al de la tabla de estudios) */
+.jobBody::-webkit-scrollbar {
+  width: 6px;
+}
+
+.jobBody::-webkit-scrollbar-thumb {
+  background-color: rgba(0, 0, 0, 0.2);
+  border-radius: 4px;
+}
+
+.jobBody::-webkit-scrollbar-track {
+  background: transparent;
 }
 
 @media (max-width: 850px) {

@@ -83,8 +83,18 @@ type EpsonConfig struct {
 	StagingDirectory string `json:"stagingDirectory"`
 	Enabled          bool   `json:"enabled"`
 	DefaultCopies    int    `json:"defaultCopies"`
+	DiscType         string `json:"discType"` // CD, DVD, BD
+    Format           string `json:"format"`   // UDF102, ISO9001, etc.
 }
-
+// Asegurar valores por defecto en el parser de configuración
+func (c *EpsonConfig) SetDefaults() {
+	if c.DiscType == "" {
+		c.DiscType = "DVD"
+	}
+	if c.Format == "" {
+		c.Format = "UDF102"
+	}
+}
 func Load(path string) (Config, error) {
 	b, e := os.ReadFile(path)
 	if e != nil {
@@ -94,40 +104,46 @@ func Load(path string) (Config, error) {
 }
 // LoadBytes parses an embedded configuration and resolves its relative paths
 // against baseDir in the same way Load resolves paths beside a config file.
+// LoadBytes parses an embedded configuration and resolves its relative paths
+// against baseDir in the same way Load resolves paths beside a config file.
 func LoadBytes(b []byte, baseDir string) (Config, error) {
-	var c Config
-	e := json.Unmarshal(b, &c)
-	if e != nil {
-		return c, e
-	}
-	c.TemporaryDirectory = resolve(baseDir, c.TemporaryDirectory)
-	c.CompletedDirectory = resolve(baseDir, c.CompletedDirectory)
-	c.LogFile = resolveOptional(baseDir, c.LogFile)
-	c.Epson.MonitoringFolder = resolveOptional(baseDir, c.Epson.MonitoringFolder)
-	c.Epson.StagingDirectory = resolveOptional(baseDir, c.Epson.StagingDirectory)
+    var c Config
+    e := json.Unmarshal(b, &c)
+    if e != nil {
+        return c, e
+    }
 
-	// Sanitiza las rutas si fueron generadas con prefijos cross-platform (p. ej. /Users/... en Windows)
-	c.TemporaryDirectory = sanitizeCrossPath(c.TemporaryDirectory)
-	c.CompletedDirectory = sanitizeCrossPath(c.CompletedDirectory)
-	c.LogFile = sanitizeCrossPath(c.LogFile)
-	c.Epson.MonitoringFolder = sanitizeCrossPath(c.Epson.MonitoringFolder)
-	c.Epson.StagingDirectory = sanitizeCrossPath(c.Epson.StagingDirectory)
+    // Aplicar valores por defecto para DiscType y Format si están vacíos en el JSON
+    c.Epson.SetDefaults()
 
-	// Regla de oro para Windows: la carpeta de Epson siempre apunta a C:\ EPSON
-	if runtime.GOOS == "windows" {
-		if c.Epson.MonitoringFolder == "" || strings.Contains(c.Epson.MonitoringFolder, "runtime") {
-			c.Epson.MonitoringFolder = `C:\EPSON\TDBridge\Orders`
-		}
-	}
-	c.DiscLabel.LogoPath = resolveOptional(baseDir, c.DiscLabel.LogoPath)
-	if c.Epson.DefaultCopies == 0 {
-		c.Epson.DefaultCopies = 1
-	}
-	if c.StudyAPI.TimeoutSeconds <= 0 {
-		c.StudyAPI.TimeoutSeconds = 15
-	}
-	migrateLegacyServerConfig(&c.StudyAPI)
-	return c, nil
+    c.TemporaryDirectory = resolve(baseDir, c.TemporaryDirectory)
+    c.CompletedDirectory = resolve(baseDir, c.CompletedDirectory)
+    c.LogFile = resolveOptional(baseDir, c.LogFile)
+    c.Epson.MonitoringFolder = resolveOptional(baseDir, c.Epson.MonitoringFolder)
+    c.Epson.StagingDirectory = resolveOptional(baseDir, c.Epson.StagingDirectory)
+
+    // Sanitiza las rutas si fueron generadas con prefijos cross-platform (p. ej. /Users/... en Windows)
+    c.TemporaryDirectory = sanitizeCrossPath(c.TemporaryDirectory)
+    c.CompletedDirectory = sanitizeCrossPath(c.CompletedDirectory)
+    c.LogFile = sanitizeCrossPath(c.LogFile)
+    c.Epson.MonitoringFolder = sanitizeCrossPath(c.Epson.MonitoringFolder)
+    c.Epson.StagingDirectory = sanitizeCrossPath(c.Epson.StagingDirectory)
+
+    // Regla de oro para Windows: la carpeta de Epson siempre apunta a C:\EPSON
+    if runtime.GOOS == "windows" {
+        if c.Epson.MonitoringFolder == "" || strings.Contains(c.Epson.MonitoringFolder, "runtime") {
+            c.Epson.MonitoringFolder = `C:\EPSON\TDBridge\Orders`
+        }
+    }
+    c.DiscLabel.LogoPath = resolveOptional(baseDir, c.DiscLabel.LogoPath)
+    if c.Epson.DefaultCopies == 0 {
+        c.Epson.DefaultCopies = 1
+    }
+    if c.StudyAPI.TimeoutSeconds <= 0 {
+        c.StudyAPI.TimeoutSeconds = 15
+    }
+    migrateLegacyServerConfig(&c.StudyAPI)
+    return c, nil
 }
 
 func Save(path string, c Config) error {

@@ -85,7 +85,13 @@ func NewApp() (*App, error) {
 	if !cfg.Epson.Enabled {
 		return nil, fmt.Errorf("TD Bridge está deshabilitado en la configuración")
 	}
-	publisher := &adapters.TdBridgePublisher{MonitoringFolder: cfg.Epson.MonitoringFolder, StagingDirectory: cfg.Epson.StagingDirectory, DefaultCopies: cfg.Epson.DefaultCopies, Logger: logger}
+	publisher := &adapters.TdBridgePublisher{
+		MonitoringFolder: cfg.Epson.MonitoringFolder, 
+		StagingDirectory: cfg.Epson.StagingDirectory, 
+		DefaultCopies: cfg.Epson.DefaultCopies, 
+		DiscType: cfg.Epson.DiscType, 
+		Format: cfg.Epson.Format,
+		Logger: logger}
 	builder := &services.StudyPackageBuilder{Repository: studyRepo, TempRoot: cfg.TemporaryDirectory, ViewerBuilds: viewerBuilds, Logger: logger}
 	monitor := adapters.TdBridgeJobMonitor{MonitoringFolder: cfg.Epson.MonitoringFolder}
 	return &App{cfg: cfg, configPath: cfgPath, studyRepo: studyRepo, publisher: publisher, monitor: monitor, builder: builder, logger: logger, studies: map[string]models.Study{}, studyServerState: "No probado"}, nil
@@ -457,4 +463,40 @@ func (a *App) ListJobs() []models.DiscJob {
 		}
 	}
 	return append([]models.DiscJob(nil), a.jobs...)
+}
+func (a *App) GetEpsonConfig() config.EpsonConfig {
+	a.mu.RLock()
+	defer a.mu.RUnlock()
+	return a.cfg.Epson
+}
+
+func (a *App) SaveEpsonConfig(epson config.EpsonConfig) error {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+
+	// 1. Sanitizar o aplicar valores por defecto si vienen vacíos
+	epson.SetDefaults()
+
+	// 2. Crear una copia de la configuración actual y actualizar la sección Epson
+	updated := a.cfg
+	updated.Epson.DiscType = epson.DiscType
+	updated.Epson.Format = epson.Format
+
+	// 3. Persistir los cambios en el archivo config.json
+	if err := config.Save(a.configPath, updated); err != nil {
+		a.logger.Error("Error guardando la configuración de Epson", "error", err)
+		return errors.New("No se pudo guardar la configuración del grabador.")
+	}
+
+	// 4. Actualizar la configuración en memoria de la app
+	a.cfg = updated
+
+	// 5. Actualizar la instancia activa del publisher para que las nuevas grabaciones usen los nuevos parámetros
+	if p, ok := a.publisher.(*adapters.TdBridgePublisher); ok {
+		p.DiscType = epson.DiscType
+		p.Format = epson.Format
+	}
+
+	a.logger.Info("Configuración de Epson/TD Bridge actualizada", "discType", epson.DiscType, "format", epson.Format)
+	return nil
 }

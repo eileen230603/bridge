@@ -2,6 +2,10 @@
 interface ServerConfig { protocol: "http" | "https"; host: string; port: number; timeoutSeconds: number }
 interface ConnectionTestResult { status: string; message: string }
 interface DiscLabelConfig { hospitalName: string; logoPath: string }
+interface EpsonConfig {
+  discType: string;
+  format: string;
+}
 interface Window {
   go?: {
     main?: {
@@ -24,6 +28,8 @@ interface Window {
         SaveDiscLabelConfig(config: DiscLabelConfig): Promise<void>;
         SelectDiscLabelLogo(): Promise<string>;
         GetDiscLabelPreview(config: DiscLabelConfig): Promise<string>;
+        GetEpsonConfig(): Promise<EpsonConfig>;
+        SaveEpsonConfig(config: EpsonConfig): Promise<void>;
       };
     };
   };
