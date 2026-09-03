@@ -14,7 +14,10 @@ func TestCreateJobStagesRealJDF(t *testing.T) {
     root := t.TempDir()
     job := validDiscJob(t, root)
     staging := filepath.Join(root, "staging")
-    p := TdBridgePublisher{StagingDirectory: staging, DefaultCopies: 2}
+    p := TdBridgePublisher{
+        StagingDirectory: staging, 
+        DefaultCopies: 2,
+    DiscType: "DVD", Format: "UDF102",}
     path, err := p.CreateJob(context.Background(), job)
     if err != nil {
         t.Fatal(err)

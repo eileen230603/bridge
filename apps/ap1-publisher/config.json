@@ -9,10 +9,12 @@
     "timeoutSeconds": 60
   },
   "epson": {
-    "monitoringFolder": "C:\\EPSON\\TDBridge\\Orders",
+   "monitoringFolder": "C:\\EPSON\\TDBridge\\Orders",
     "stagingDirectory": "C:\\Users\\HP VICTUS\\Desktop\\bridge\\runtime\\epson-staging",
     "enabled": true,
-    "defaultCopies": 1
+    "defaultCopies": 1,
+    "discType": "BD",
+    "format": "UDF150"
   },
   "discLabel": {
     "hospitalName": "HOSPITAL DE MONTERO",
