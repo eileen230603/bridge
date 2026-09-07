@@ -22,6 +22,7 @@ type Config struct {
 	DiscLabel          DiscLabelConfig `json:"discLabel"`
 	CleanupAfterHours  int             `json:"cleanupAfterHours"`
 	CleanupEnabled     bool            `json:"cleanupEnabled"`
+	LicenseKey         string          `json:"licenseKey"`
 }
 type DiscLabelConfig struct {
 	HospitalName string `json:"hospitalName"`

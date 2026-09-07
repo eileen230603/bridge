@@ -30,6 +30,7 @@ type App struct {
 	publisher        adapters.EpsonPublisher
 	monitor          adapters.EpsonJobMonitor
 	builder          *services.StudyPackageBuilder
+	licenseService   *services.LicenseService
 	logger           *slog.Logger
 	mu               sync.RWMutex
 	studies          map[string]models.Study
@@ -51,7 +52,12 @@ type ConnectionTestResult struct {
 	Status  string `json:"status"`
 	Message string `json:"message"`
 }
-
+type LicenseResponse struct {
+    IsValid   bool   `json:"isValid"`
+    MachineID string `json:"machineId"`
+    IsVM      bool   `json:"isVm"`
+    Error     string `json:"error,omitempty"`
+}
 func NewApp() (*App, error) {
 	executable, _ := os.Executable()
 	workDir, _ := os.Getwd()
@@ -94,7 +100,8 @@ func NewApp() (*App, error) {
 		Logger: logger}
 	builder := &services.StudyPackageBuilder{Repository: studyRepo, TempRoot: cfg.TemporaryDirectory, ViewerBuilds: viewerBuilds, Logger: logger}
 	monitor := adapters.TdBridgeJobMonitor{MonitoringFolder: cfg.Epson.MonitoringFolder}
-	return &App{cfg: cfg, configPath: cfgPath, studyRepo: studyRepo, publisher: publisher, monitor: monitor, builder: builder, logger: logger, studies: map[string]models.Study{}, studyServerState: "No probado"}, nil
+	licenseService := services.NewLicenseService()
+	return &App{cfg: cfg, configPath: cfgPath, studyRepo: studyRepo, publisher: publisher, monitor: monitor, builder: builder,licenseService: licenseService ,logger: logger, studies: map[string]models.Study{}, studyServerState: "No probado"}, nil
 }
 
 func resolveAP1ConfigPath(explicit, executable, workDir string) (string, bool) {
@@ -146,7 +153,20 @@ func (a *App) startup(ctx context.Context) {
 		a.logger.Error("Cleanup scan failed", "error", e)
 	}
 }
-
+// GetMachineID obtiene el identificador único de hardware del equipo
+func (a *App) GetMachineID() (string, error) {
+	return a.licenseService.GetMachineID()
+}
+// ValidateLicense comprueba la validez del token contra el Machine ID
+func (a *App) ValidateLicense(token string) LicenseResponse {
+    status := a.licenseService.ValidateLicense(token)
+    return LicenseResponse{
+        IsValid:   status.IsValid,
+        MachineID: status.MachineID,
+        IsVM:      status.IsVM,
+        Error:     status.Error,
+    }
+}
 func (a *App) GetSystemStatus() SystemStatus {
 	a.mu.RLock()
 	studyServerState := a.studyServerState
