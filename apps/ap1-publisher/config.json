@@ -22,5 +22,6 @@
   },
   "cleanupAfterHours": 4,
   "cleanupEnabled": false,
-  "licenseKey": ""
+  "licenseKey": "",
+  "licenseToken": ""
 }

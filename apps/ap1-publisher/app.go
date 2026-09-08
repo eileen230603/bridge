@@ -19,6 +19,8 @@ import (
 	"github.com/local/dicom-disc-suite/apps/ap1-publisher/internal/config"
 	"github.com/local/dicom-disc-suite/apps/ap1-publisher/internal/services"
 	"github.com/local/dicom-disc-suite/shared/models"
+	"github.com/symphonylicensemanager/go/license"
+	"github.com/symphonylicensemanager/go/machineid"
 	wailsruntime "github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
@@ -53,10 +55,13 @@ type ConnectionTestResult struct {
 	Message string `json:"message"`
 }
 type LicenseResponse struct {
-    IsValid   bool   `json:"isValid"`
-    MachineID string `json:"machineId"`
-    IsVM      bool   `json:"isVm"`
-    Error     string `json:"error,omitempty"`
+	IsValid    bool   `json:"isValid"`
+	MachineID  string `json:"machineId"`
+	IsVM       bool   `json:"isVm"`
+	Error      string `json:"error,omitempty"`
+	Product    string `json:"product,omitempty"`
+	ExpiresAt  string `json:"expiresAt,omitempty"`
+	Indefinite bool   `json:"indefinite"`
 }
 func NewApp() (*App, error) {
 	executable, _ := os.Executable()
@@ -155,17 +160,57 @@ func (a *App) startup(ctx context.Context) {
 }
 // GetMachineID obtiene el identificador único de hardware del equipo
 func (a *App) GetMachineID() (string, error) {
-	return a.licenseService.GetMachineID()
+	if machineid.IsVM() {
+		return "", errors.New("entorno virtual detectado")
+	}
+	return machineid.ID()
 }
 // ValidateLicense comprueba la validez del token contra el Machine ID
 func (a *App) ValidateLicense(token string) LicenseResponse {
-    status := a.licenseService.ValidateLicense(token)
-    return LicenseResponse{
-        IsValid:   status.IsValid,
-        MachineID: status.MachineID,
-        IsVM:      status.IsVM,
-        Error:     status.Error,
-    }
+	token = strings.TrimSpace(token)
+	isVm := machineid.IsVM()
+
+	if isVm {
+		return LicenseResponse{
+			IsValid: false,
+			IsVM:    true,
+			Error:   "No se permiten licencias en máquinas virtuales.",
+		}
+	}
+
+	id, err := machineid.ID()
+	if err != nil {
+		return LicenseResponse{
+			IsValid: false,
+			IsVM:    isVm,
+			Error:   "Error al obtener ID de la máquina",
+		}
+	}
+
+	if token == "" {
+		return LicenseResponse{
+			IsValid:   false,
+			MachineID: id,
+			IsVM:      isVm,
+			Error:     "Token no proporcionado",
+		}
+	}
+
+	_, err = license.Verify(token, id)
+	if err != nil {
+		return LicenseResponse{
+			IsValid:   false,
+			MachineID: id,
+			IsVM:      isVm,
+			Error:     "Licencia inválida o expirada",
+		}
+	}
+
+	return LicenseResponse{
+		IsValid:   true,
+		MachineID: id,
+		IsVM:      isVm,
+	}
 }
 func (a *App) GetSystemStatus() SystemStatus {
 	a.mu.RLock()
@@ -198,23 +243,37 @@ func (a *App) GetServerConfig() config.ServerConfig {
 }
 
 func (a *App) SaveServerConfig(server config.ServerConfig) error {
-	server.Protocol = strings.ToLower(strings.TrimSpace(server.Protocol))
-	server.Host = strings.TrimSpace(server.Host)
-	if err := server.Validate(); err != nil {
-		return err
-	}
-	a.mu.Lock()
-	updated := a.cfg
-	updated.StudyAPI = server
-	if err := config.Save(a.configPath, updated); err != nil {
-		a.mu.Unlock()
-		return errors.New("No se pudo guardar la configuración.")
-	}
-	a.cfg = updated
-	a.studyServerState = "No probado"
-	a.mu.Unlock()
-	a.studyRepo.UpdateConfig(server)
-	return nil
+    server.Protocol = strings.ToLower(strings.TrimSpace(server.Protocol))
+    server.Host = strings.TrimSpace(server.Host)
+    
+    // 1. Validar parámetros de entrada
+    if err := server.Validate(); err != nil {
+        return err
+    }
+
+    a.mu.Lock()
+    updated := a.cfg
+    updated.StudyAPI = server
+
+    // 2. Persistir en el archivo config.json
+    if err := config.Save(a.configPath, updated); err != nil {
+        a.mu.Unlock()
+        a.logger.Error("Error guardando configuración del servidor", "error", err)
+        return errors.New("No se pudo guardar la configuración.")
+    }
+
+    // 3. Actualizar estado e instancia local
+    a.cfg = updated
+    a.studyServerState = "No probado"
+    a.mu.Unlock()
+
+    // 4. Notificar al repositorio de estudios para renovar la URL base/clientes HTTP
+    if a.studyRepo != nil {
+        a.studyRepo.UpdateConfig(server)
+    }
+
+    a.logger.Info("Configuración del servidor de estudios actualizada correctamente", "host", server.Host, "port", server.Port)
+    return nil
 }
 
 func (a *App) GetDiscLabelConfig() config.DiscLabelConfig {
@@ -279,7 +338,43 @@ func (a *App) SaveDiscLabelConfig(labelConfig config.DiscLabelConfig) error {
 	a.cfg = updated
 	return nil
 }
+// GetLicenseToken devuelve el token guardado en config.json
+func (a *App) GetLicenseToken() string {
+    a.mu.RLock()
+    defer a.mu.RUnlock()
+    return a.cfg.LicenseToken
+}
 
+// SaveLicenseToken valida y persiste el token de la licencia en la configuración
+func (a *App) SaveLicenseToken(token string) (LicenseResponse, error) {
+    token = strings.TrimSpace(token)
+    status := a.licenseService.ValidateLicense(token)
+    
+    if !status.IsValid {
+        return LicenseResponse{
+            IsValid:   false,
+            MachineID: status.MachineID,
+            IsVM:      status.IsVM,
+            Error:     status.Error,
+        }, errors.New("licencia inválida")
+    }
+
+    a.mu.Lock()
+    updated := a.cfg
+    updated.LicenseToken = token
+    if err := config.Save(a.configPath, updated); err != nil {
+        a.mu.Unlock()
+        return LicenseResponse{}, errors.New("no se pudo guardar la licencia en el archivo de configuración")
+    }
+    a.cfg = updated
+    a.mu.Unlock()
+
+    return LicenseResponse{
+        IsValid:   true,
+        MachineID: status.MachineID,
+        IsVM:      status.IsVM,
+    }, nil
+}
 func storeDiscLabelLogo(configPath, sourcePath string) (string, error) {
 	extension := strings.ToLower(filepath.Ext(sourcePath))
 	if extension != ".png" && extension != ".jpg" && extension != ".jpeg" {

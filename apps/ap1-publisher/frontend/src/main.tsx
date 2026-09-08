@@ -3,8 +3,12 @@ import { createRoot } from "react-dom/client";
 import "./style.css";
 import "./jobs.css";
 import "./settings.css";
+import "./components/LicenciaModal.css";
 import { SplashScreen, StartupError } from "./components/SplashScreen";
+import { LicenseGuard } from "./components/LicenseGuard";
+import { useLicense } from "./components/LicenseContext";
 import medicareLogo from "./assets/MEDICARESOFTPNG.png";
+import LicenciaModal from "./components/LicenciaModal";
 type Study = {
   studyInstanceUID: string;
   patientName: string;
@@ -54,13 +58,12 @@ const SPLASH_FADE_MS = 300;
 const delay = (milliseconds: number) =>
   new Promise<void>((resolve) => window.setTimeout(resolve, milliseconds));
 
-function App({
-  initialStatus,
-  initialJobs,
-}: {
+function App({initialStatus, initialJobs,}: {
   initialStatus: SystemStatus;
   initialJobs: DiscJob[];
 }) {
+  const {isValid} = useLicense();
+  const [isModalOpen, setIsModalOpen] = React.useState(false);  // modal de licencia
   const today = new Date().toISOString().slice(0, 10);
   const prior = new Date(Date.now() - 7 * 864e5).toISOString().slice(0, 10);
   const [from, setFrom] = React.useState(prior);
@@ -259,6 +262,7 @@ function App({
     };
   }, []);
   return (
+    <LicenseGuard>
     <div className="shell appEnter">
       <header>
         <div className="brand">
@@ -267,9 +271,21 @@ function App({
             <b>SYMPHONY MEDIA EXPORT</b>
           </div>
         </div>
+        {/* Acciones y estado de la licencia */}
+     
+          <button onClick={()=> setIsModalOpen(true)} className={`btn-header-action ${isValid ? 'license-active' : 'license-inactive'}`}>
+            <span>{isValid ? "✓ licencia activa" : "✕ licencia inactiva"}</span>
+          </button>
+          
+       
         <button className="settings" onClick={openSettings}>
           ⚙ Configuración
         </button>
+        <LicenciaModal
+          isOpen={isModalOpen}
+          onClose={()=> setIsModalOpen(false)}>
+
+          </LicenciaModal>
       </header>
       <main>
         <section className="hero">
@@ -305,7 +321,7 @@ function App({
                 Cancelar búsqueda
               </button>
             ) : (
-              <button onClick={search}>Buscar estudios</button>
+              <button onClick={search} disabled={!isValid} title={!isValid ? "Licencia requerida para buscar estudios" : undefined}>Buscar estudios</button>
             )}
           </div>
         </section>
@@ -405,13 +421,16 @@ function App({
                       className={`action ${buttonState}`}
                       onClick={() => publish(s)}
                       disabled={
+                        !isValid || // bloquear si no hay licencia
                         !s.studyInstanceUID ||
                         isSubmitting ||
                         isProcessing ||
                         isRecorded
                       }
                       title={
-                        !s.studyInstanceUID
+                        !isValid // bloquear si no hay licencia
+                        ? "Requiere una licencia activa para grabar "
+                        : !s.studyInstanceUID
                           ? "El servidor no proporcionó EST_UID"
                           : undefined
                       }
@@ -717,8 +736,9 @@ function App({
         </div>
       )}
     </div>
+    </LicenseGuard>
   );
-}
+} // aqui termina App
 function friendlyError(error: unknown) {
   const text = String(error);
   for (const message of [
