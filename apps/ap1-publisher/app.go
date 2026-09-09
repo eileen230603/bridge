@@ -75,7 +75,7 @@ func NewApp() (*App, error) {
 		// Keep the existing ../../runtime layout relative to the portable EXE.
 		portableBase := filepath.Join(filepath.Dir(executable), "apps", "ap1-publisher")
 		cfg, e = config.LoadBytes(defaultConfig, portableBase)
-		cfgPath = "embedded config.json"
+
 	}
 	if e != nil {
 		return nil, fmt.Errorf("load AP1 configuration %q: %w", cfgPath, e)

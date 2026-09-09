@@ -74,8 +74,8 @@ func TestNewAppUsesEmbeddedConfigWhenNoExternalFileExists(t *testing.T) {
 	t.Setenv("AP1_CONFIG", "")
 	workDir := t.TempDir()
 	executable := filepath.Join(workDir, "DICOM Disc Publisher.exe")
-	if path, found := resolveAP1ConfigPath("", executable, workDir); found || path != "" {
-		t.Fatalf("expected no external config, got path=%q found=%v", path, found)
+	if path, found := resolveAP1ConfigPath("", executable, workDir); found || path != filepath.Join(workDir, "config.json") {
+		t.Fatalf("expected a save path for missing external config, got path=%q found=%v", path, found)
 	}
 
 	cfg, err := config.LoadBytes(defaultConfig, filepath.Join(workDir, "apps", "ap1-publisher"))
