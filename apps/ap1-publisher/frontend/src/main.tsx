@@ -6,7 +6,7 @@ import "./settings.css";
 import "./components/LicenciaModal.css";
 import { SplashScreen, StartupError } from "./components/SplashScreen";
 import { LicenseGuard } from "./components/LicenseGuard";
-import { useLicense } from "./components/LicenseContext";
+import { LicenseProvider, useLicense } from "./components/LicenseContext";
 import medicareLogo from "./assets/MEDICARESOFTPNG.png";
 import LicenciaModal from "./components/LicenciaModal";
 type Study = {
@@ -862,4 +862,4 @@ function friendlyStartupError(error: unknown) {
   return text.split("\n")[0] || "Error desconocido durante la inicialización.";
 }
 
-createRoot(document.getElementById("root")!).render(<Root />);
+createRoot(document.getElementById("root")!).render(<LicenseProvider><Root /></LicenseProvider>);
