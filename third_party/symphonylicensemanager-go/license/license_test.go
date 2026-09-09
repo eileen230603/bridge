@@ -1,62 +1,67 @@
 package license
 
 import (
+	"crypto/ed25519"
+	"crypto/rand"
+	"encoding/base64"
+	"encoding/json"
 	"errors"
-	"testing"
-
 	"github.com/symphonylicensemanager/go/machineid"
+	"testing"
+	"time"
 )
 
-const (
-	indefiniteToken = "eyJwcm9kdWN0IjoidGVzdCIsIm1hY2hpbmVfaWQiOiJ0ZXN0LW1hY2hpbmUiLCJpc3N1ZWRfYXQiOiIyMDI2LTA5LTAzVDE0OjQ5OjU0Ljc5NTM4N1oiLCJleHBpcmVzX2F0IjoiMjAyNy0wOS0wM1QxNDo0OTo1NC43OTUzODdaIiwiaW5kZWZpbml0ZSI6dHJ1ZX0X4utM4FxdAvv2sA02KweNTN_omJztiTWef3PJ1vv0Jp8DvbsKG3DoXYJXRjkU8bhIZLBsGKfwTCNcBdwdfsML"
-	expiredToken    = "eyJwcm9kdWN0IjoidGVzdCIsIm1hY2hpbmVfaWQiOiJ0ZXN0LW1hY2hpbmUiLCJpc3N1ZWRfYXQiOiIyMDI2LTA5LTAzVDE0OjQ5OjU0LjQwNDc0OVoiLCJleHBpcmVzX2F0IjoiMjAyNi0wOC0wNFQxNDo0OTo1NC40MDQ3NDlaIn1FbSbDrYgrRKDSq1ecbDqXkJh6xb2p9B9FCokPTRb48L3o6Ll664AEs2Jg-BbaEcnMrUgFFUCBOHOoWP0qfj4B"
-)
-
-func skipIfVM(t *testing.T) {
+func TestVerify(t *testing.T) {
 	if machineid.IsVM() {
 		t.Skip("running in a virtual machine")
 	}
-}
-
-func TestVerifyIndefinite(t *testing.T) {
-	skipIfVM(t)
-
-	l, err := Verify(indefiniteToken, "test-machine")
+	pub, private, err := ed25519.GenerateKey(rand.Reader)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !l.Indefinite {
-		t.Fatal("expected indefinite license")
+	original := publicKey
+	publicKey = pub
+	t.Cleanup(func() { publicKey = original })
+	cases := []struct {
+		name       string
+		id         string
+		indefinite bool
+		expires    time.Time
+		tamper     bool
+		want       error
+	}{
+		{"permanent", "machine", true, time.Time{}, false, nil},
+		{"dated", "machine", false, time.Now().Add(time.Hour), false, nil},
+		{"different machine", "other", true, time.Time{}, false, ErrMachineMismatch},
+		{"expired", "machine", false, time.Now().Add(-time.Hour), false, ErrExpired},
+		{"tampered", "machine", true, time.Time{}, true, ErrInvalidSignature},
 	}
-	if l.Product != "test" {
-		t.Fatalf("unexpected product: %s", l.Product)
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			payload, err := json.Marshal(License{Product: "symphony-ap1", MachineID: "machine", Indefinite: tc.indefinite, ExpiresAt: tc.expires})
+			if err != nil {
+				t.Fatal(err)
+			}
+			raw := append(payload, ed25519.Sign(private, payload)...)
+			if tc.tamper {
+				raw[len(raw)-1] ^= 1
+			}
+			got, err := Verify(base64.RawURLEncoding.EncodeToString(raw), tc.id)
+			if !errors.Is(err, tc.want) {
+				t.Fatalf("got %v, want %v", err, tc.want)
+			}
+			if err == nil && got.Product != "symphony-ap1" {
+				t.Fatalf("unexpected license: %+v", got)
+			}
+		})
 	}
-}
-
-func TestVerifyMachineMismatch(t *testing.T) {
-	skipIfVM(t)
-
-	_, err := Verify(indefiniteToken, "other-machine")
-	if !errors.Is(err, ErrMachineMismatch) {
-		t.Fatalf("expected ErrMachineMismatch, got %v", err)
+	_, otherKey, err := ed25519.GenerateKey(rand.Reader)
+	if err != nil {
+		t.Fatal(err)
 	}
-}
-
-func TestVerifyExpired(t *testing.T) {
-	skipIfVM(t)
-
-	_, err := Verify(expiredToken, "test-machine")
-	if !errors.Is(err, ErrExpired) {
-		t.Fatalf("expected ErrExpired, got %v", err)
-	}
-}
-
-func TestVerifyInvalidSignature(t *testing.T) {
-	skipIfVM(t)
-
-	tampered := indefiniteToken[:len(indefiniteToken)-1] + "A"
-	_, err := Verify(tampered, "test-machine")
-	if !errors.Is(err, ErrInvalidSignature) {
-		t.Fatalf("expected ErrInvalidSignature, got %v", err)
+	payload := []byte(`{"machine_id":"machine","indefinite":true}`)
+	token := base64.RawURLEncoding.EncodeToString(append(payload, ed25519.Sign(otherKey, payload)...))
+	if _, err := Verify(token, "machine"); !errors.Is(err, ErrInvalidSignature) {
+		t.Fatalf("foreign issuer accepted: %v", err)
 	}
 }

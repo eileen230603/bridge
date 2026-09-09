@@ -17,7 +17,7 @@ var (
 	ErrVirtualMachine   = errors.New("license: cannot activate on virtual machines")
 )
 
-const publicKeyB64 = "c-rIPfQIPxvC0nwM_q_vGWvR1e013lJZGQO5nlw-1JM"
+const publicKeyB64 = "eD6aQZgkVTwUgKhZ1LFLe5r6Gnk996MEuqrTZZGDc5I"
 
 var publicKey = mustPublicKey()
 

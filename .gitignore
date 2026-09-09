@@ -20,3 +20,5 @@ runtime/completed/*
 runtime/logs/*
 !runtime/logs/.gitkeep
 runtime/
+
+/license-admin-private/
