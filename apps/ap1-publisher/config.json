@@ -1,7 +1,7 @@
 {
-  "temporaryDirectory": "C:\\Users\\HP VICTUS\\Desktop\\bridge\\runtime\\temp",
-  "completedDirectory": "C:\\Users\\HP VICTUS\\Desktop\\bridge\\runtime\\completed",
-  "logFile": "C:\\Users\\HP VICTUS\\Desktop\\bridge\\runtime\\logs\\ap1.log",
+  "temporaryDirectory": "/Users/medicaresoft/Desktop/Practicas/dicomdisc/bridge/apps/ap1-publisher/C:\\Users\\HP VICTUS\\Desktop\\bridge\\runtime\\temp",
+  "completedDirectory": "/Users/medicaresoft/Desktop/Practicas/dicomdisc/bridge/apps/ap1-publisher/C:\\Users\\HP VICTUS\\Desktop\\bridge\\runtime\\completed",
+  "logFile": "/Users/medicaresoft/Desktop/Practicas/dicomdisc/bridge/apps/ap1-publisher/C:\\Users\\HP VICTUS\\Desktop\\bridge\\runtime\\logs\\ap1.log",
   "studyApi": {
     "protocol": "http",
     "host": "192.168.0.102",
@@ -9,17 +9,19 @@
     "timeoutSeconds": 60
   },
   "epson": {
-   "monitoringFolder": "C:\\EPSON\\TDBridge\\Orders",
-    "stagingDirectory": "C:\\Users\\HP VICTUS\\Desktop\\bridge\\runtime\\epson-staging",
+    "monitoringFolder": "/Users/medicaresoft/Desktop/Practicas/dicomdisc/bridge/apps/ap1-publisher/C:\\EPSON\\TDBridge\\Orders",
+    "stagingDirectory": "/Users/medicaresoft/Desktop/Practicas/dicomdisc/bridge/apps/ap1-publisher/C:\\Users\\HP VICTUS\\Desktop\\bridge\\runtime\\epson-staging",
     "enabled": true,
     "defaultCopies": 1,
-    "discType": "BD",
-    "format": "UDF150"
+    "discType": "DVD",
+    "format": "UDF102"
   },
   "discLabel": {
     "hospitalName": "HOSPITAL DE MONTERO",
-    "logoPath": "C:\\Users\\HP VICTUS\\Desktop\\bridge\\apps\\ap1-publisher\\assets\\hospital-logo.png"
+    "logoPath": "/Users/medicaresoft/Desktop/Practicas/dicomdisc/bridge/apps/ap1-publisher/assets/hospital-logo.png"
   },
   "cleanupAfterHours": 4,
-  "cleanupEnabled": false
+  "cleanupEnabled": false,
+  "licenseKey": "",
+  "licenseToken": ""
 }

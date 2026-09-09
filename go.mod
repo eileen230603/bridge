@@ -4,7 +4,10 @@ go 1.25.0
 
 require github.com/wailsapp/wails/v2 v2.15.0
 
-require golang.org/x/image v0.41.0
+require (
+	github.com/symphonylicensemanager/go v0.1.0
+	golang.org/x/image v0.41.0
+)
 
 require (
 	git.sr.ht/~jackmordaunt/go-toast/v2 v2.0.3 // indirect
