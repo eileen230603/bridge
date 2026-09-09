@@ -81,13 +81,33 @@ func (c ServerConfig) BaseAddress() (string, error) {
 }
 
 type EpsonConfig struct {
+	PrintMode        int    `json:"printMode"`
+	LabelType        int    `json:"labelType"`
 	MonitoringFolder string `json:"monitoringFolder"`
 	StagingDirectory string `json:"stagingDirectory"`
 	Enabled          bool   `json:"enabled"`
 	DefaultCopies    int    `json:"defaultCopies"`
 	DiscType         string `json:"discType"` // CD, DVD, BD
-    Format           string `json:"format"`   // UDF102, ISO9001, etc.
+	Format           string `json:"format"`   // UDF102, ISO9001, etc.
 }
+
+// ValidatePerformance limits overrides to print modes shared by Discproducer publishers.
+func (c EpsonConfig) ValidatePerformance() error {
+	if c.PrintMode < 0 || c.PrintMode > 2 {
+		return errors.New("Modo de impresión inválido.")
+	}
+	if c.LabelType < 0 || c.LabelType > 3 {
+		return errors.New("Tipo de superficie de impresión inválido.")
+	}
+	if c.PrintMode == 2 && c.LabelType != 1 && c.LabelType != 2 {
+		return errors.New("Para impresión rápida seleccione una superficie estándar o de alta calidad; la superficie brillante requiere calidad.")
+	}
+	if c.LabelType == 3 && c.PrintMode != 1 {
+		return errors.New("La superficie brillante requiere el modo Calidad.")
+	}
+	return nil
+}
+
 // Asegurar valores por defecto en el parser de configuración
 func (c *EpsonConfig) SetDefaults() {
 	if c.DiscType == "" {
@@ -104,48 +124,52 @@ func Load(path string) (Config, error) {
 	}
 	return LoadBytes(b, filepath.Dir(path))
 }
+
 // LoadBytes parses an embedded configuration and resolves its relative paths
 // against baseDir in the same way Load resolves paths beside a config file.
 // LoadBytes parses an embedded configuration and resolves its relative paths
 // against baseDir in the same way Load resolves paths beside a config file.
 func LoadBytes(b []byte, baseDir string) (Config, error) {
-    var c Config
-    e := json.Unmarshal(b, &c)
-    if e != nil {
-        return c, e
-    }
+	var c Config
+	e := json.Unmarshal(b, &c)
+	if e != nil {
+		return c, e
+	}
 
-    // Aplicar valores por defecto para DiscType y Format si están vacíos en el JSON
-    c.Epson.SetDefaults()
+	// Aplicar valores por defecto para DiscType y Format si están vacíos en el JSON
+	c.Epson.SetDefaults()
+	if err := c.Epson.ValidatePerformance(); err != nil {
+		return c, err
+	}
 
-    c.TemporaryDirectory = resolve(baseDir, c.TemporaryDirectory)
-    c.CompletedDirectory = resolve(baseDir, c.CompletedDirectory)
-    c.LogFile = resolveOptional(baseDir, c.LogFile)
-    c.Epson.MonitoringFolder = resolveOptional(baseDir, c.Epson.MonitoringFolder)
-    c.Epson.StagingDirectory = resolveOptional(baseDir, c.Epson.StagingDirectory)
+	c.TemporaryDirectory = resolve(baseDir, c.TemporaryDirectory)
+	c.CompletedDirectory = resolve(baseDir, c.CompletedDirectory)
+	c.LogFile = resolveOptional(baseDir, c.LogFile)
+	c.Epson.MonitoringFolder = resolveOptional(baseDir, c.Epson.MonitoringFolder)
+	c.Epson.StagingDirectory = resolveOptional(baseDir, c.Epson.StagingDirectory)
 
-    // Sanitiza las rutas si fueron generadas con prefijos cross-platform (p. ej. /Users/... en Windows)
-    c.TemporaryDirectory = sanitizeCrossPath(c.TemporaryDirectory)
-    c.CompletedDirectory = sanitizeCrossPath(c.CompletedDirectory)
-    c.LogFile = sanitizeCrossPath(c.LogFile)
-    c.Epson.MonitoringFolder = sanitizeCrossPath(c.Epson.MonitoringFolder)
-    c.Epson.StagingDirectory = sanitizeCrossPath(c.Epson.StagingDirectory)
+	// Sanitiza las rutas si fueron generadas con prefijos cross-platform (p. ej. /Users/... en Windows)
+	c.TemporaryDirectory = sanitizeCrossPath(c.TemporaryDirectory)
+	c.CompletedDirectory = sanitizeCrossPath(c.CompletedDirectory)
+	c.LogFile = sanitizeCrossPath(c.LogFile)
+	c.Epson.MonitoringFolder = sanitizeCrossPath(c.Epson.MonitoringFolder)
+	c.Epson.StagingDirectory = sanitizeCrossPath(c.Epson.StagingDirectory)
 
-    // Regla de oro para Windows: la carpeta de Epson siempre apunta a C:\EPSON
-    if runtime.GOOS == "windows" {
-        if c.Epson.MonitoringFolder == "" || strings.Contains(c.Epson.MonitoringFolder, "runtime") {
-            c.Epson.MonitoringFolder = `C:\EPSON\TDBridge\Orders`
-        }
-    }
-    c.DiscLabel.LogoPath = resolveOptional(baseDir, c.DiscLabel.LogoPath)
-    if c.Epson.DefaultCopies == 0 {
-        c.Epson.DefaultCopies = 1
-    }
-    if c.StudyAPI.TimeoutSeconds <= 0 {
-        c.StudyAPI.TimeoutSeconds = 15
-    }
-    migrateLegacyServerConfig(&c.StudyAPI)
-    return c, nil
+	// Regla de oro para Windows: la carpeta de Epson siempre apunta a C:\EPSON
+	if runtime.GOOS == "windows" {
+		if c.Epson.MonitoringFolder == "" || strings.Contains(c.Epson.MonitoringFolder, "runtime") {
+			c.Epson.MonitoringFolder = `C:\EPSON\TDBridge\Orders`
+		}
+	}
+	c.DiscLabel.LogoPath = resolveOptional(baseDir, c.DiscLabel.LogoPath)
+	if c.Epson.DefaultCopies == 0 {
+		c.Epson.DefaultCopies = 1
+	}
+	if c.StudyAPI.TimeoutSeconds <= 0 {
+		c.StudyAPI.TimeoutSeconds = 15
+	}
+	migrateLegacyServerConfig(&c.StudyAPI)
+	return c, nil
 }
 
 func Save(path string, c Config) error {
@@ -197,7 +221,7 @@ func resolve(base, p string) string {
 
 	// Normaliza la ruta relativa (elimina prefijos tipo 'apps/ap1-publisher/')
 	cleanedRelative := filepath.Clean(p)
-	
+
 	// Si la ruta empieza con la estructura del monorepo, extrae solo la parte relevante
 	if strings.HasPrefix(cleanedRelative, "apps"+string(filepath.Separator)+"ap1-publisher") {
 		parts := strings.Split(cleanedRelative, string(filepath.Separator))

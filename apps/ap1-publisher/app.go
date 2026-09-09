@@ -97,12 +97,14 @@ func NewApp() (*App, error) {
 		return nil, fmt.Errorf("TD Bridge está deshabilitado en la configuración")
 	}
 	publisher := &adapters.TdBridgePublisher{
-		MonitoringFolder: cfg.Epson.MonitoringFolder, 
-		StagingDirectory: cfg.Epson.StagingDirectory, 
-		DefaultCopies: cfg.Epson.DefaultCopies, 
-		DiscType: cfg.Epson.DiscType, 
-		Format: cfg.Epson.Format,
-		Logger: logger}
+		MonitoringFolder: cfg.Epson.MonitoringFolder,
+		StagingDirectory: cfg.Epson.StagingDirectory,
+		DefaultCopies:    cfg.Epson.DefaultCopies,
+		DiscType:         cfg.Epson.DiscType,
+		Format:           cfg.Epson.Format,
+		PrintMode:        cfg.Epson.PrintMode,
+		LabelType:        cfg.Epson.LabelType,
+		Logger:           logger}
 	builder := &services.StudyPackageBuilder{Repository: studyRepo, TempRoot: cfg.TemporaryDirectory, ViewerBuilds: viewerBuilds, Logger: logger}
 	monitor := adapters.TdBridgeJobMonitor{MonitoringFolder: cfg.Epson.MonitoringFolder}
 	licenseService := services.NewLicenseService()
@@ -506,6 +508,7 @@ func (a *App) CreateDiscJob(uid string) (models.DiscJob, error) {
 	a.mu.RLock()
 	study, ok := a.studies[uid]
 	labelConfig := a.cfg.DiscLabel
+	publisher := a.publisher
 	a.mu.RUnlock()
 	if !ok {
 		return models.DiscJob{}, fmt.Errorf("study not found; run search first")
@@ -523,12 +526,12 @@ func (a *App) CreateDiscJob(uid string) (models.DiscJob, error) {
 	}
 	job.Status = models.Publishing
 	job.UpdatedAt = time.Now()
-	path, e := a.publisher.CreateJob(a.ctx, job)
+	path, e := publisher.CreateJob(a.ctx, job)
 	if e != nil {
 		return a.fail(job, e)
 	}
 	job.EpsonJobPath = path
-	if e = a.publisher.SubmitJob(a.ctx, path); e != nil {
+	if e = publisher.SubmitJob(a.ctx, path); e != nil {
 		return a.fail(job, e)
 	}
 	job.Status = models.QueuedForEpson
@@ -591,11 +594,16 @@ func (a *App) SaveEpsonConfig(epson config.EpsonConfig) error {
 
 	// 1. Sanitizar o aplicar valores por defecto si vienen vacíos
 	epson.SetDefaults()
+	if err := epson.ValidatePerformance(); err != nil {
+		return err
+	}
 
 	// 2. Crear una copia de la configuración actual y actualizar la sección Epson
 	updated := a.cfg
 	updated.Epson.DiscType = epson.DiscType
 	updated.Epson.Format = epson.Format
+	updated.Epson.PrintMode = epson.PrintMode
+	updated.Epson.LabelType = epson.LabelType
 
 	// 3. Persistir los cambios en el archivo config.json
 	if err := config.Save(a.configPath, updated); err != nil {
@@ -608,8 +616,12 @@ func (a *App) SaveEpsonConfig(epson config.EpsonConfig) error {
 
 	// 5. Actualizar la instancia activa del publisher para que las nuevas grabaciones usen los nuevos parámetros
 	if p, ok := a.publisher.(*adapters.TdBridgePublisher); ok {
-		p.DiscType = epson.DiscType
-		p.Format = epson.Format
+		next := *p
+		next.DiscType = epson.DiscType
+		next.Format = epson.Format
+		next.PrintMode = epson.PrintMode
+		next.LabelType = epson.LabelType
+		a.publisher = &next
 	}
 
 	a.logger.Info("Configuración de Epson/TD Bridge actualizada", "discType", epson.DiscType, "format", epson.Format)

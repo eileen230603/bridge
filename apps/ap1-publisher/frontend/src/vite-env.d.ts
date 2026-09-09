@@ -5,6 +5,8 @@ interface DiscLabelConfig { hospitalName: string; logoPath: string }
 interface EpsonConfig {
   discType: string;
   format: string;
+  printMode: number;
+  labelType: number;
 }
 interface Window {
   go?: {

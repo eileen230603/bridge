@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"io/fs"
 	"log/slog"
 	"os"
@@ -44,7 +45,15 @@ func (b *StudyPackageBuilder) Build(ctx context.Context, study models.Study, lab
 		UpdatedAt:        created,
 	}
 
-	root := filepath.Join(b.TempRoot, study.StudyInstanceUID)
+	if err := os.MkdirAll(b.TempRoot, 0o755); err != nil {
+		return now, err
+	}
+	// Each queued job owns its files until TD Bridge has finished consuming them.
+	root, err := os.MkdirTemp(b.TempRoot, now.ID+"-")
+	if err != nil {
+		return now, err
+	}
+	now.ID = filepath.Base(root)
 	now.TempPath = root
 	now.DataPath = filepath.Join(root, "data")
 	now.ViewerPath = root
@@ -53,28 +62,40 @@ func (b *StudyPackageBuilder) Build(ctx context.Context, study models.Study, lab
 
 	b.Logger.Info("Preparing study package", "study_uid", study.StudyInstanceUID, "job_id", now.ID)
 
-	if err := os.RemoveAll(root); err != nil {
-		return now, err
-	}
-
 	for _, p := range []string{now.DataPath, filepath.Dir(now.LabelPath)} {
 		if err := os.MkdirAll(p, 0755); err != nil {
 			return now, err
 		}
 	}
 
-	b.Logger.Info("Starting HTTP study download", "study_uid", study.StudyInstanceUID)
-	if err := b.Repository.RetrieveStudy(ctx, study.StudyInstanceUID, now.DataPath); err != nil {
-		return now, fmt.Errorf("download study: %w", err)
+	// Overlap the network download with independent viewer extraction.
+	downloadCtx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	downloadDone := make(chan error, 1)
+	go func() {
+		started := time.Now()
+		err := b.Repository.RetrieveStudy(downloadCtx, study.StudyInstanceUID, now.DataPath)
+		b.Logger.Info("Study download finished", "job_id", now.ID, "duration_ms", time.Since(started).Milliseconds(), "success", err == nil)
+		downloadDone <- err
+	}()
+	viewerStarted := time.Now()
+	viewerErr := extractViewerBuilds(b.ViewerBuilds, root)
+	b.Logger.Info("Viewer extraction finished", "job_id", now.ID, "duration_ms", time.Since(viewerStarted).Milliseconds(), "success", viewerErr == nil)
+	if viewerErr != nil {
+		cancel()
 	}
-
+	// Always join the download before returning, including extraction failures.
+	downloadErr := <-downloadDone
+	if viewerErr != nil {
+		return now, fmt.Errorf("extract embedded viewer builds: %w", viewerErr)
+	}
+	if downloadErr != nil {
+		return now, fmt.Errorf("download study: %w", downloadErr)
+	}
+	if err := ctx.Err(); err != nil {
+		return now, err
+	}
 	now.Status = models.Preparing
-
-	if err := extractViewerBuilds(b.ViewerBuilds, root); err != nil {
-
-		return now, fmt.Errorf("extract embedded viewer builds: %w", err)
-
-	}
 
 	// 1. Mapear la estructura del estudio
 	manifest := MapSymphonyStudyToViewerStudy(study)
@@ -99,34 +120,25 @@ func (b *StudyPackageBuilder) Build(ctx context.Context, study models.Study, lab
 	b.Logger.Info("Encrypted study manifest created", "job_id", now.ID)
 
 	// 5. Crear el archivo autorun.inf para la raíz del disco
-    autorunContent := []byte("[autorun]\r\nopen=Symphony Viewer.exe\r\nicon=Symphony Viewer.exe\r\nlabel=Symphony Disc\r\n")
-    autorunPath := filepath.Join(root, "autorun.inf")
-    if err := os.WriteFile(autorunPath, autorunContent, 0644); err != nil {
-        return now, fmt.Errorf("write autorun.inf: %w", err)
-    }
-    b.Logger.Info("autorun.inf created", "job_id", now.ID)
+	autorunContent := []byte("[autorun]\r\nopen=Symphony Viewer.exe\r\nicon=Symphony Viewer.exe\r\nlabel=Symphony Disc\r\n")
+	autorunPath := filepath.Join(root, "autorun.inf")
+	if err := os.WriteFile(autorunPath, autorunContent, 0644); err != nil {
+		return now, fmt.Errorf("write autorun.inf: %w", err)
+	}
+	b.Logger.Info("autorun.inf created", "job_id", now.ID)
 	// 6. Ocultar la ventana de ejecución del archivo autorun.inf
 	hideFileWindows(autorunPath)
-
-	if err = GenerateDiscLabel(now.LabelPath, study); err != nil {
-
-	}
-
-	// 4. Guardar como binario cifrado
-	if err = os.WriteFile(now.ManifestPath, encryptedBytes, 0644); err != nil {
-		return now, fmt.Errorf("write study.dat: %w", err)
-	}
-	b.Logger.Info("Encrypted study manifest created", "job_id", now.ID)
 
 	if err = GenerateDiscLabelWithBranding(now.LabelPath, study, branding); err != nil {
 		return now, fmt.Errorf("generate disc label: %w", err)
 	}
 
 	now.Status = models.Ready
-	b.Logger.Info("Study package prepared", "job_id", now.ID)
-	//launchViewer(root).  con esto hace que aparezca la ventana de Symphony Visor 
+	b.Logger.Info("Study package prepared", "job_id", now.ID, "duration_ms", time.Since(created).Milliseconds())
+	//launchViewer(root).  con esto hace que aparezca la ventana de Symphony Visor
 	return now, nil
 }
+
 // hideFileWindows aplica el atributo oculto al archivo si el sistema es Windows
 // hideFileWindows aplica el atributo oculto al archivo si el sistema es Windows
 func hideFileWindows(path string) {
@@ -193,23 +205,38 @@ func extractViewerBuilds(builds fs.FS, destination string) error {
 			return nil
 		}
 
-		content, err := fs.ReadFile(builds, source)
-		if err != nil {
-			return fmt.Errorf("read embedded viewer file %q: %w", source, err)
-		}
-
 		// Asignar permisos 0755 al .exe de Windows y a los binarios ejecutables de Mac
 		mode := fs.FileMode(0o644)
 		if slashSource == windowsViewer || strings.Contains(slashSource, "Contents/MacOS/") {
 			mode = 0o755
 		}
 
-		if err := os.WriteFile(target, content, mode); err != nil {
+		if err := copyViewerFile(builds, source, target, mode); err != nil {
 			return fmt.Errorf("write viewer file %q: %w", target, err)
 		}
 		return nil
 	})
 }
+
+// Stream embedded executables instead of allocating their entire contents.
+func copyViewerFile(builds fs.FS, source, target string, mode fs.FileMode) error {
+	in, err := builds.Open(source)
+	if err != nil {
+		return err
+	}
+	defer in.Close()
+	out, err := os.OpenFile(target, os.O_CREATE|os.O_EXCL|os.O_WRONLY, mode)
+	if err != nil {
+		return err
+	}
+	_, copyErr := io.Copy(out, in)
+	closeErr := out.Close()
+	if copyErr != nil {
+		return copyErr
+	}
+	return closeErr
+}
+
 // launchViewer ejecuta automáticamente el visor del estudio al finalizar la preparación
 func launchViewer(studyRoot string) {
 	var cmd *exec.Cmd
@@ -228,5 +255,3 @@ func launchViewer(studyRoot string) {
 	// Start() inicia el proceso en segundo plano sin bloquear AP1
 	_ = cmd.Start()
 }
-
-

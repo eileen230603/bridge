@@ -33,6 +33,8 @@ func TestCreateJobStagesRealJDF(t *testing.T) {
         "DISC_TYPE=DVD\r\n", 
         "FORMAT=UDF102\r\n", 
         "\tdata\r\n", 
+        "\tSymphony Viewer.exe\r\n",
+        "\tSymphony Viewer.app\r\n",
         "\tstudy.dat\r\n", 
         "\tautorun.inf\r\n", 
         "LABEL=" + job.LabelPath + "\r\n",
@@ -46,6 +48,9 @@ func TestCreateJobStagesRealJDF(t *testing.T) {
     }
     if strings.Contains(text, "\tAP2\r\n") {
         t.Fatalf("AP2 directory should not be created on disc root:\n%s", text)
+    }
+    if strings.Contains(text, "\t.\r\n") {
+        t.Fatalf("package root must not be included because it duplicates disc content:\n%s", text)
     }
 }
 
@@ -123,6 +128,12 @@ func validDiscJob(t *testing.T, root string) models.DiscJob {
     }
     autorunPath := filepath.Join(packageRoot, "autorun.inf")
     if err := os.WriteFile(autorunPath, []byte("[autorun]\r\n"), 0o644); err != nil {
+        t.Fatal(err)
+    }
+    if err := os.WriteFile(filepath.Join(packageRoot, "Symphony Viewer.exe"), []byte("viewer"), 0o755); err != nil {
+        t.Fatal(err)
+    }
+    if err := os.Mkdir(filepath.Join(packageRoot, "Symphony Viewer.app"), 0o755); err != nil {
         t.Fatal(err)
     }
     return job

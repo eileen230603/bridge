@@ -34,6 +34,8 @@ type DiscJob = {
 type EpsonConfig = {
   discType: string;
   format: string;
+  printMode: number;
+  labelType: number;
 };
 type SystemStatus = {
   studyServer: string;
@@ -101,6 +103,8 @@ function App({initialStatus, initialJobs,}: {
   const [epsonConfig, setEpsonConfig] = React.useState<EpsonConfig>({
     discType: "DVD",
     format: "UDF102",
+    printMode: 0,
+    labelType: 0,
   });
   async function openSettings() {
     const backend = api();
@@ -115,6 +119,8 @@ function App({initialStatus, initialJobs,}: {
       setEpsonConfig({
         discType: epson.discType || "DVD",
         format: epson.format || "UDF102",
+        printMode: epson.printMode ?? 0,
+        labelType: epson.labelType ?? 0,
       });
     }
     setConnection({ status: "No probado", message: "" });
@@ -622,6 +628,35 @@ function App({initialStatus, initialJobs,}: {
                 />
                 <hr className="settingsDivider" />
                 <h3>Parámetros del Grabador</h3>
+                <label>
+                  Superficie imprimible del disco
+                  <select value={epsonConfig.labelType} onChange={(e) => {
+                    const labelType = Number(e.target.value);
+                    setEpsonConfig((v) => ({
+                      ...v, labelType,
+                      printMode: labelType === 3 ? 1 : labelType === 0 && v.printMode === 2 ? 0 : v.printMode,
+                    }));
+                  }}>
+                    <option value={0}>Usar configuración del equipo</option>
+                    <option value={1}>Estándar CD/DVD</option>
+                    <option value={2}>Alta calidad CD/DVD</option>
+                    <option value={3}>Brillante / certificada Epson</option>
+                  </select>
+                </label>
+                <label>
+                  Velocidad de impresión
+                  <select value={epsonConfig.printMode}
+                    onChange={(e) => setEpsonConfig((v) => ({ ...v, printMode: Number(e.target.value) }))}>
+                    <option value={0} disabled={epsonConfig.labelType === 3}>Usar configuración del equipo</option>
+                    <option value={1}>Calidad</option>
+                    <option value={2} disabled={epsonConfig.labelType !== 1 && epsonConfig.labelType !== 2}>Rápida</option>
+                  </select>
+                </label>
+                <small className="labelHint">
+                  Para impresión rápida, seleccione la superficie que corresponde a sus discos.
+                  La superficie brillante requiere Calidad. La grabación usa la velocidad máxima
+                  disponible del equipo y del disco.
+                </small>
 
                 <label>
                   Tipo de Disco

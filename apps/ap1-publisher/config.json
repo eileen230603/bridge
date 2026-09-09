@@ -4,13 +4,13 @@
   "logFile": "/Users/medicaresoft/Desktop/Practicas/dicomdisc/bridge/apps/ap1-publisher/C:\\Users\\HP VICTUS\\Desktop\\bridge\\runtime\\logs\\ap1.log",
   "studyApi": {
     "protocol": "http",
-    "host": "192.168.0.102",
+    "host": "172.16.16.71",
     "port": 4000,
     "timeoutSeconds": 60
   },
   "epson": {
-    "monitoringFolder": "/Users/medicaresoft/Desktop/Practicas/dicomdisc/bridge/apps/ap1-publisher/C:\\EPSON\\TDBridge\\Orders",
-    "stagingDirectory": "/Users/medicaresoft/Desktop/Practicas/dicomdisc/bridge/apps/ap1-publisher/C:\\Users\\HP VICTUS\\Desktop\\bridge\\runtime\\epson-staging",
+    "monitoringFolder": "C:\\EPSON\\TDBridge\\Orders",
+    "stagingDirectory": "C:\\Users\\HP VICTUS\\Desktop\\bridge\\runtime\\epson-staging",
     "enabled": true,
     "defaultCopies": 1,
     "discType": "DVD",
