@@ -22,3 +22,4 @@ runtime/logs/*
 runtime/
 
 /license-admin-private/
+/tools/license-admin/ui/wailsjs/

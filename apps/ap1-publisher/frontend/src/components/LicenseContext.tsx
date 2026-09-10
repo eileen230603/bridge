@@ -54,6 +54,13 @@ export const LicenseProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
   useEffect(() => {
     checkLicense();
+    const interval = window.setInterval(checkLicense, 30_000);
+    const onFocus = () => { void checkLicense(); };
+    window.addEventListener("focus", onFocus);
+    return () => {
+      window.clearInterval(interval);
+      window.removeEventListener("focus", onFocus);
+    };
   }, [checkLicense]);
 
   return (

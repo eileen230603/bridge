@@ -505,6 +505,9 @@ func (a *App) CancelSearch() {
 }
 
 func (a *App) CreateDiscJob(uid string) (models.DiscJob, error) {
+	if status := a.ValidateLicense(a.GetLicenseToken()); !status.IsValid {
+		return models.DiscJob{}, fmt.Errorf("Se requiere una licencia activa para grabar: %s", status.Error)
+	}
 	a.mu.RLock()
 	study, ok := a.studies[uid]
 	labelConfig := a.cfg.DiscLabel
@@ -531,6 +534,9 @@ func (a *App) CreateDiscJob(uid string) (models.DiscJob, error) {
 		return a.fail(job, e)
 	}
 	job.EpsonJobPath = path
+	if status := a.ValidateLicense(a.GetLicenseToken()); !status.IsValid {
+		return a.fail(job, fmt.Errorf("La licencia dejó de ser válida antes de enviar la grabación: %s", status.Error))
+	}
 	if e = publisher.SubmitJob(a.ctx, path); e != nil {
 		return a.fail(job, e)
 	}

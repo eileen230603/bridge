@@ -1,7 +1,7 @@
 {
-  "temporaryDirectory": "../../runtime/temp",
-  "completedDirectory": "../../runtime/completed",
-  "logFile": "../../runtime/logs/ap1.log",
+  "temporaryDirectory": "C:\\Users\\HP VICTUS\\Desktop\\bridge\\runtime\\temp",
+  "completedDirectory": "C:\\Users\\HP VICTUS\\Desktop\\bridge\\runtime\\completed",
+  "logFile": "C:\\Users\\HP VICTUS\\Desktop\\bridge\\runtime\\logs\\ap1.log",
   "studyApi": {
     "protocol": "http",
     "host": "172.16.16.71",
@@ -9,8 +9,10 @@
     "timeoutSeconds": 60
   },
   "epson": {
+    "printMode": 0,
+    "labelType": 0,
     "monitoringFolder": "C:\\EPSON\\TDBridge\\Orders",
-    "stagingDirectory": "../../runtime/epson-staging",
+    "stagingDirectory": "C:\\Users\\HP VICTUS\\Desktop\\bridge\\runtime\\epson-staging",
     "enabled": true,
     "defaultCopies": 1,
     "discType": "DVD",
@@ -18,10 +20,10 @@
   },
   "discLabel": {
     "hospitalName": "HOSPITAL DE MONTERO",
-    "logoPath": "assets/hospital-logo.png"
+    "logoPath": "C:\\Users\\HP VICTUS\\Desktop\\bridge\\apps\\ap1-publisher\\assets\\hospital-logo.png"
   },
   "cleanupAfterHours": 4,
   "cleanupEnabled": false,
   "licenseKey": "",
-  "licenseToken": ""
+  "licenseToken": "eyJwcm9kdWN0Ijoic3ltcGhvbnktYXAxIiwibWFjaGluZV9pZCI6IjQzMDA5NmM4YjlkODNlZWQ3Y2M5NGI5NzA1NGQ5NzdiZDU0NTNiYmU0NjBkMjdkNWFjMDBiMGMyMWExNzIwNWEiLCJpc3N1ZWRfYXQiOiIyMDI2LTA5LTA5VDE1OjE2OjA1LjUyOTI0N1oiLCJleHBpcmVzX2F0IjoiMjAyNy0wOS0wOVQyMzo1OTo1OS45OTk5OTk5OTlaIn0vmsL_35jqbmQNkD-tBhRD81Y8lK1e7LaIdYx3Fi73h1TRIQu34jKZH-GfMkvVmtwXOHMGLNFRe4r7wM-Iz5UC"
 }

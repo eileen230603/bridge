@@ -1,38 +1,45 @@
-# Emisor de licencias Symphony AP1
+# Administrador de licencias Symphony
 
-El administrador abre `license-admin-private/Symphony License Admin.exe`.
+Abrir `license-admin-private/Symphony License Admin.exe`. Ahora es una aplicación gráfica, sin consola.
 
-1. Pegar el Machine ID que muestra AP1.
-2. Escribir la fecha de vencimiento AAAA-MM-DD o pulsar Enter para una licencia permanente.
-3. El programa muestra el token y guarda un archivo `licencia-<Machine ID>-<fecha>.txt` junto al ejecutable.
-4. Entregar solamente ese token al usuario, quien lo pega en AP1 > licencia inactiva > Activar Licencia.
+## Emitir y consultar
 
-Las fechas vencen al finalizar el día indicado en UTC. Se necesita el AP1 actualizado con la nueva clave pública.
+1. Pulsar **Nueva licencia**.
+2. Introducir cliente o institución y el Machine ID de AP1.
+3. Elegir fecha de vencimiento o licencia permanente.
+4. Generar y copiar el token, o guardarlo como archivo .txt.
+5. Entregar el token al cliente para pegarlo en AP1 > Activar Licencia.
 
-## Archivos del administrador
+El panel muestra todas las licencias, activas, próximas a vencer (30 días) y vencidas. Incluye búsqueda por cliente/identificador y el tiempo restante, actualizado cada 30 segundos. Las licencias permanentes cuentan como activas. El vencimiento ocurre al terminar la fecha seleccionada, en UTC.
 
-`license-admin-private/issuer-private.key` es la clave de emisión. Mantener una copia de seguridad privada; quien la tenga puede emitir licencias. No distribuir la carpeta del administrador a clientes. La carpeta completa está excluida de Git. La clave nunca se incrusta en AP1 ni en el ejecutable del emisor: el emisor la lee del archivo que lo acompaña.
+“Activa” significa vigente según el token, no confirma que se haya instalado en el equipo del cliente: AP1 valida sin enviar confirmaciones a este administrador.
 
-`issuer-public.key` puede compartirse. Su valor está incorporado en `third_party/symphonylicensemanager-go/license/license.go`. La clave anterior de la biblioteca ya no se acepta.
+## SQLite y respaldo
 
-Para compilar el emisor desde la raíz:
+La base SQLite `license-admin-private/licenses.sqlite` se crea al abrir la aplicación. Al iniciar se importan automáticamente los archivos `licencia-*.txt` que estén junto al ejecutable, siempre que su firma corresponda a esta clave. No se duplican tokens ya importados y se conservan también los vencidos. Archivos inválidos o de otro emisor no se importan.
 
-```
-go build -o "license-admin-private/Symphony License Admin.exe" ./tools/license-admin
-```
+Para un respaldo completo, cerrar el administrador y copiar en privado la carpeta `license-admin-private`. Contiene la base y `issuer-private.key`, necesaria para emitir nuevas licencias. No distribuir esa carpeta a clientes. Está excluida de Git; la clave nunca se incrusta en AP1 ni en el ejecutable administrador.
 
-Para emitir por consola:
+La aplicación pública solo contiene la clave de verificación en `third_party/symphonylicensemanager-go/license/license.go`.
 
-```
-"Symphony License Admin.exe" -machine <Machine-ID> -expires 2027-12-31
-```
+## Compilar
 
-La opción `-keys` permite especificar la carpeta privada. `-init` es solo para establecer un emisor NUEVO; no sobrescribe claves existentes. Un nuevo par de claves requiere actualizar la clave pública y recompilar AP1. No ejecutar para emitir cada licencia.
-
-Pruebas:
+Desde `tools/license-admin`:
 
 ```
-go test ./tools/license-admin ./apps/ap1-publisher/...
+wails build
 ```
 
-La prueba local de compatibilidad comprueba que la clave privada instalada emite tokens aceptados por la aplicación; se omite donde no está instalada esa clave.
+Copiar `build/bin/Symphony License Admin.exe` a la carpeta privada, junto a la clave existente. No reemplazar ni regenerar esa clave.
+
+La interfaz está en `tools/license-admin/ui`, sin dependencias npm. SQLite usa el controlador Go `modernc.org/sqlite` (https://modernc.org/sqlite).
+
+La compatibilidad por consola se conserva con `-machine <ID> -expires AAAA-MM-DD` y `-keys <carpeta>`. También registra esas emisiones en SQLite. `-init` es únicamente para configurar un emisor nuevo y nunca sobrescribe una clave existente; cambiar la clave requiere recompilar AP1 con la pública correspondiente.
+
+## Verificar
+
+```
+go test ./tools/license-admin
+```
+
+Incluye firma, persistencia, importación sin duplicados, entradas inválidas y límites de vencimiento. La prueba de compatibilidad con el emisor local se omite donde la clave privada no está instalada.

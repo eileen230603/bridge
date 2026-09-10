@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bufio"
 	"crypto/ed25519"
 	"crypto/rand"
 	"encoding/base64"
@@ -98,29 +97,27 @@ func run() error {
 	if *initKeys {
 		return initialize(*dir)
 	}
+	if *id == "" {
+		return runGUI(*dir)
+	}
 	key, err := loadKey(*dir)
 	if err != nil {
 		return fmt.Errorf("no se pudo cargar la clave del administrador: %w", err)
 	}
-	interactive := *id == ""
-	reader := bufio.NewReader(os.Stdin)
-	if interactive {
-		fmt.Println("SYMPHONY - Emisor de licencias (administrador)")
-		fmt.Print("Pegue el Machine ID: ")
-		value, err := reader.ReadString('\n')
-		if err != nil {
-			return err
-		}
-		*id = strings.TrimSpace(value)
-		fmt.Print("Vencimiento AAAA-MM-DD, o Enter para permanente (fecha UTC): ")
-		value, err = reader.ReadString('\n')
-		if err != nil {
-			return err
-		}
-		*expires = strings.TrimSpace(value)
-	}
 	token, err := issue(key, *id, *expires, time.Now())
 	if err != nil {
+		return err
+	}
+	admin, err := newAdmin(*dir)
+	if err != nil {
+		return err
+	}
+	defer admin.db.Close()
+	details, err := decodeIssued(token, key.Public().(ed25519.PublicKey))
+	if err != nil {
+		return err
+	}
+	if err := admin.save("Emitida por consola", token, details); err != nil {
 		return err
 	}
 	output := filepath.Join(*dir, "licencia-"+strings.ToLower(strings.TrimSpace(*id))+"-"+time.Now().UTC().Format("20060102-150405.000000000")+".txt")
@@ -129,17 +126,12 @@ func run() error {
 	}
 	fmt.Println("\nToken de licencia:\n" + token)
 	fmt.Println("\nGuardado en: " + output)
-	if interactive {
-		fmt.Print("\nCopie el token en AP1 > Gestion de Licencia. Enter para cerrar.")
-		reader.ReadString('\n')
-	}
 	return nil
 }
 func main() {
 	if err := run(); err != nil {
 		fmt.Fprintln(os.Stderr, "Error:", err)
-		fmt.Println("Presione Enter para cerrar.")
-		bufio.NewReader(os.Stdin).ReadString('\n')
+
 		os.Exit(1)
 	}
 }

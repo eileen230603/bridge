@@ -1,0 +1,8 @@
+{
+  "name": "Symphony License Admin",
+  "outputfilename": "Symphony License Admin",
+  "frontend:dir": "ui",
+  "frontend:install": "",
+  "frontend:build": "",
+  "author": {"name": "Symphony"}
+}
