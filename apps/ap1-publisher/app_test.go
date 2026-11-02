@@ -41,6 +41,7 @@ func TestNewAppDoesNotValidateViewerBuildsDuringStartup(t *testing.T) {
 	if err != nil {
 		t.Fatalf("AP1 startup must not depend on embedded viewers: %v", err)
 	}
+	t.Cleanup(app.closeHistory)
 	if app.builder.ViewerBuilds == nil {
 		t.Fatal("viewer filesystem must be passed through for package-time validation")
 	}
@@ -78,7 +79,7 @@ func TestNewAppUsesEmbeddedConfigWhenNoExternalFileExists(t *testing.T) {
 		t.Fatalf("expected a save path for missing external config, got path=%q found=%v", path, found)
 	}
 
-	cfg, err := config.LoadBytes(defaultConfig, filepath.Join(workDir, "apps", "ap1-publisher"))
+	cfg, err := config.LoadBytes(defaultConfig, workDir)
 	if err != nil {
 		t.Fatalf("embedded config must be valid: %v", err)
 	}

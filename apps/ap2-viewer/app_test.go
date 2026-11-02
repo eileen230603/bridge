@@ -78,3 +78,12 @@ func assertPaths(t *testing.T, root, manifest, data string) {
 		t.Fatalf("unexpected paths: manifest=%q data=%q", manifest, data)
 	}
 }
+
+func TestDistributedViewerDoesNotOpenDevelopmentStudy(t *testing.T) {
+	root := t.TempDir()
+	createStudyDir(t, filepath.Join(root, "runtime", "temp", "old-study"), time.Now())
+	delivery := filepath.Join(root, "delivery", "AP2")
+	executable := filepath.Join(delivery, "Symphony Viewer.exe")
+	manifest, data := resolveStudyPath("", executable, root)
+	assertPaths(t, delivery, manifest, data)
+}

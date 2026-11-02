@@ -51,7 +51,7 @@ npm --prefix frontend install
 wails dev
 ```
 
-En producción busca `data/` y `study.json` junto al ejecutable. Para desarrollo puede establecerse `DICOM_VIEWER_CONTENT_DIR` a una carpeta de paquete. El área de imagen es intencionalmente un placeholder.
+En producción busca `data/` y `study.dat` junto al ejecutable. Para desarrollo puede establecerse `DICOM_VIEWER_CONTENT_DIR` a una carpeta de paquete. El visor integrado usa Cornerstone y carga los DICOM locales sin un servidor PACS. Permite seleccionar series y navegar imágenes con la rueda del ratón. Lee el manifiesto cifrado `study.dat` y la carpeta `data/`. Véase [verificación del visor](docs/ap2-viewer.md).
 
 ## Implementado
 
@@ -66,8 +66,8 @@ En producción busca `data/` y `study.json` junto al ejecutable. Para desarrollo
 
 ## Pendiente de instalación
 
-- Validación física de grabación e impresión con TD Bridge/Epson.
-- Cornerstone, codecs y renderizado DICOM.
+- Grabación con TD Bridge/Epson: validada por el usuario en la instalación actual.
+- Ampliar la matriz de verificación de formatos DICOM y plataformas; el renderizado y la navegación local de AP2 están implementados.
 - Etiqueta PNG real, base de datos y autenticación.
 - Validación de ejecución desde CD y builds arm64/Linux/macOS.
 
@@ -99,3 +99,7 @@ El receptor de pruebas C-ECHO/C-STORE sigue disponible sin cambios bajo `src/`. 
 
 ESTA ES LA DIRECCIÓN ACTUAL DEL SERVIDOR DE ESTUDIOS.
 SI CAMBIA EL SERVIDOR, MODIFICAR `studyApi.baseUrl` EN config.json.
+
+## Rutas e historial de AP1
+
+AP1 incluye configuración portátil sin datos de activación del desarrollador y conserva el historial en SQLite entre reinicios. Véase [rutas, instalación y respaldo](docs/ap1-paths-history.md).

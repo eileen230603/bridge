@@ -2,7 +2,7 @@ package main
 
 import "embed"
 
-//go:embed config.json
+//go:embed config.defaults.json
 var defaultConfig []byte
 //go:embed frontend/src/assets/SYMPHONYPNG.png
 var symphonyLogo []byte

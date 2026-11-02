@@ -14,6 +14,8 @@ import (
 )
 
 type Config struct {
+	HistoryFile        string `json:"historyFile"`
+	relativePaths      map[string]bool
 	TemporaryDirectory string          `json:"temporaryDirectory"`
 	CompletedDirectory string          `json:"completedDirectory"`
 	LogFile            string          `json:"logFile"`
@@ -23,7 +25,7 @@ type Config struct {
 	CleanupAfterHours  int             `json:"cleanupAfterHours"`
 	CleanupEnabled     bool            `json:"cleanupEnabled"`
 	LicenseKey         string          `json:"licenseKey"`
-	LicenseToken string `json:"licenseToken"`
+	LicenseToken       string          `json:"licenseToken"`
 }
 type DiscLabelConfig struct {
 	HospitalName string `json:"hospitalName"`
@@ -142,6 +144,14 @@ func LoadBytes(b []byte, baseDir string) (Config, error) {
 		return c, err
 	}
 
+	if c.HistoryFile == "" {
+		c.HistoryFile = "runtime/history.sqlite"
+	}
+	c.relativePaths = map[string]bool{}
+	for key, value := range pathFields(&c) {
+		c.relativePaths[key] = *value != "" && !filepath.IsAbs(*value)
+	}
+	c.HistoryFile = resolve(baseDir, c.HistoryFile)
 	c.TemporaryDirectory = resolve(baseDir, c.TemporaryDirectory)
 	c.CompletedDirectory = resolve(baseDir, c.CompletedDirectory)
 	c.LogFile = resolveOptional(baseDir, c.LogFile)
@@ -157,7 +167,7 @@ func LoadBytes(b []byte, baseDir string) (Config, error) {
 
 	// Regla de oro para Windows: la carpeta de Epson siempre apunta a C:\EPSON
 	if runtime.GOOS == "windows" {
-		if c.Epson.MonitoringFolder == "" || strings.Contains(c.Epson.MonitoringFolder, "runtime") {
+		if c.Epson.MonitoringFolder == "" {
 			c.Epson.MonitoringFolder = `C:\EPSON\TDBridge\Orders`
 		}
 	}
@@ -174,6 +184,20 @@ func LoadBytes(b []byte, baseDir string) (Config, error) {
 
 func Save(path string, c Config) error {
 	c.StudyAPI.BaseURL, c.StudyAPI.GetStudiesPath, c.StudyAPI.DownloadStudyPath = "", "", ""
+	for key, value := range pathFields(&c) {
+		relativeLogo := false
+		if key == "logo" && *value != "" {
+			rel, err := filepath.Rel(filepath.Dir(path), *value)
+			relativeLogo = err == nil && rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator))
+		}
+		if (c.relativePaths[key] || relativeLogo) && *value != "" {
+			relative, err := filepath.Rel(filepath.Dir(path), *value)
+			if err != nil {
+				return err
+			}
+			*value = relative
+		}
+	}
 	b, err := json.MarshalIndent(c, "", "  ")
 	if err != nil {
 		return err
@@ -232,4 +256,8 @@ func resolve(base, p string) string {
 
 	// Si es una ruta relativa simple (ej. "./runtime/temp"), la resuelve en el directorio base
 	return filepath.Clean(filepath.Join(base, cleanedRelative))
+}
+
+func pathFields(c *Config) map[string]*string {
+	return map[string]*string{"temp": &c.TemporaryDirectory, "completed": &c.CompletedDirectory, "log": &c.LogFile, "history": &c.HistoryFile, "staging": &c.Epson.StagingDirectory, "monitoring": &c.Epson.MonitoringFolder, "logo": &c.DiscLabel.LogoPath}
 }

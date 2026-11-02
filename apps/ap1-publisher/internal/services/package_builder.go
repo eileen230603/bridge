@@ -18,6 +18,7 @@ import (
 )
 
 type StudyPackageBuilder struct {
+	OnJobCreated func(models.DiscJob) error
 	Repository   StudyRetriever
 	TempRoot     string
 	ViewerBuilds fs.FS
@@ -60,6 +61,11 @@ func (b *StudyPackageBuilder) Build(ctx context.Context, study models.Study, lab
 	now.ManifestPath = filepath.Join(root, "study.dat")
 	now.LabelPath = filepath.Join(root, "label", "label.png")
 
+	if b.OnJobCreated != nil {
+		if err := b.OnJobCreated(now); err != nil {
+			return now, err
+		}
+	}
 	b.Logger.Info("Preparing study package", "study_uid", study.StudyInstanceUID, "job_id", now.ID)
 
 	for _, p := range []string{now.DataPath, filepath.Dir(now.LabelPath)} {

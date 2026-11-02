@@ -37,6 +37,8 @@ type App struct {
 	mu               sync.RWMutex
 	studies          map[string]models.Study
 	jobs             []models.DiscJob
+	history          *services.JobHistory
+	historyError     string
 	studyServerState string
 	searchCancel     context.CancelFunc
 	searchID         uint64
@@ -63,6 +65,7 @@ type LicenseResponse struct {
 	ExpiresAt  string `json:"expiresAt,omitempty"`
 	Indefinite bool   `json:"indefinite"`
 }
+
 func NewApp() (*App, error) {
 	executable, _ := os.Executable()
 	workDir, _ := os.Getwd()
@@ -72,8 +75,8 @@ func NewApp() (*App, error) {
 	if found {
 		cfg, e = config.Load(cfgPath)
 	} else {
-		// Keep the existing ../../runtime layout relative to the portable EXE.
-		portableBase := filepath.Join(filepath.Dir(executable), "apps", "ap1-publisher")
+		// Embedded defaults use runtime/ beside the portable configuration.
+		portableBase := filepath.Dir(cfgPath)
 		cfg, e = config.LoadBytes(defaultConfig, portableBase)
 
 	}
@@ -108,7 +111,32 @@ func NewApp() (*App, error) {
 	builder := &services.StudyPackageBuilder{Repository: studyRepo, TempRoot: cfg.TemporaryDirectory, ViewerBuilds: viewerBuilds, Logger: logger}
 	monitor := adapters.TdBridgeJobMonitor{MonitoringFolder: cfg.Epson.MonitoringFolder}
 	licenseService := services.NewLicenseService()
-	return &App{cfg: cfg, configPath: cfgPath, studyRepo: studyRepo, publisher: publisher, monitor: monitor, builder: builder,licenseService: licenseService ,logger: logger, studies: map[string]models.Study{}, studyServerState: "No probado"}, nil
+	history, err := services.OpenJobHistory(cfg.HistoryFile)
+	if err != nil {
+		return nil, fmt.Errorf("abrir historial: %w", err)
+	}
+	jobs, err := history.Load()
+	if err != nil {
+		history.Close()
+		return nil, fmt.Errorf("leer historial: %w", err)
+	}
+	app := &App{cfg: cfg, configPath: cfgPath, studyRepo: studyRepo, publisher: publisher, monitor: monitor, builder: builder, licenseService: licenseService, logger: logger, studies: map[string]models.Study{}, studyServerState: "No probado", history: history, jobs: jobs}
+	for i := range app.jobs {
+		job := app.jobs[i]
+		switch job.Status {
+		case models.Pending, models.Downloading, models.Preparing, models.Ready:
+			job.Status = models.Failed
+			job.ErrorMessage = "La preparación se interrumpió al cerrar AP1. Este trabajo no se envió a Epson."
+			job.UpdatedAt = time.Now()
+			if err := history.Save(job); err != nil {
+				history.Close()
+				return nil, err
+			}
+			app.jobs[i] = job
+		}
+	}
+	builder.OnJobCreated = app.recordJob
+	return app, nil
 }
 
 func resolveAP1ConfigPath(explicit, executable, workDir string) (string, bool) {
@@ -127,16 +155,16 @@ func resolveAP1ConfigPath(explicit, executable, workDir string) (string, bool) {
 	}
 
 	// 2. Definir lista de candidatos prioritarios
-	candidates := []string{
-		filepath.Join(workDir, "config.json"),
-	}
+	candidates := []string{}
 	if executableDir != "" {
 		candidates = append(candidates,
 			filepath.Join(executableDir, "config.json"),
-			filepath.Join(executableDir, "..", "..", "config.json"),
 		)
 	}
-	candidates = append(candidates, filepath.Join(workDir, "apps", "ap1-publisher", "config.json"))
+	if filepath.Base(executableDir) == "bin" && filepath.Base(filepath.Dir(executableDir)) == "build" {
+		candidates = append(candidates, filepath.Join(executableDir, "..", "..", "config.json"))
+	}
+	candidates = append(candidates, filepath.Join(workDir, "config.json"), filepath.Join(workDir, "apps", "ap1-publisher", "config.json"))
 
 	// 3. Buscar un config.json existente
 	for _, candidate := range candidates {
@@ -160,6 +188,7 @@ func (a *App) startup(ctx context.Context) {
 		a.logger.Error("Cleanup scan failed", "error", e)
 	}
 }
+
 // GetMachineID obtiene el identificador único de hardware del equipo
 func (a *App) GetMachineID() (string, error) {
 	if machineid.IsVM() {
@@ -167,6 +196,7 @@ func (a *App) GetMachineID() (string, error) {
 	}
 	return machineid.ID()
 }
+
 // ValidateLicense comprueba la validez del token contra el Machine ID
 func (a *App) ValidateLicense(token string) LicenseResponse {
 	token = strings.TrimSpace(token)
@@ -245,37 +275,37 @@ func (a *App) GetServerConfig() config.ServerConfig {
 }
 
 func (a *App) SaveServerConfig(server config.ServerConfig) error {
-    server.Protocol = strings.ToLower(strings.TrimSpace(server.Protocol))
-    server.Host = strings.TrimSpace(server.Host)
-    
-    // 1. Validar parámetros de entrada
-    if err := server.Validate(); err != nil {
-        return err
-    }
+	server.Protocol = strings.ToLower(strings.TrimSpace(server.Protocol))
+	server.Host = strings.TrimSpace(server.Host)
 
-    a.mu.Lock()
-    updated := a.cfg
-    updated.StudyAPI = server
+	// 1. Validar parámetros de entrada
+	if err := server.Validate(); err != nil {
+		return err
+	}
 
-    // 2. Persistir en el archivo config.json
-    if err := config.Save(a.configPath, updated); err != nil {
-        a.mu.Unlock()
-        a.logger.Error("Error guardando configuración del servidor", "error", err)
-        return errors.New("No se pudo guardar la configuración.")
-    }
+	a.mu.Lock()
+	updated := a.cfg
+	updated.StudyAPI = server
 
-    // 3. Actualizar estado e instancia local
-    a.cfg = updated
-    a.studyServerState = "No probado"
-    a.mu.Unlock()
+	// 2. Persistir en el archivo config.json
+	if err := config.Save(a.configPath, updated); err != nil {
+		a.mu.Unlock()
+		a.logger.Error("Error guardando configuración del servidor", "error", err)
+		return errors.New("No se pudo guardar la configuración.")
+	}
 
-    // 4. Notificar al repositorio de estudios para renovar la URL base/clientes HTTP
-    if a.studyRepo != nil {
-        a.studyRepo.UpdateConfig(server)
-    }
+	// 3. Actualizar estado e instancia local
+	a.cfg = updated
+	a.studyServerState = "No probado"
+	a.mu.Unlock()
 
-    a.logger.Info("Configuración del servidor de estudios actualizada correctamente", "host", server.Host, "port", server.Port)
-    return nil
+	// 4. Notificar al repositorio de estudios para renovar la URL base/clientes HTTP
+	if a.studyRepo != nil {
+		a.studyRepo.UpdateConfig(server)
+	}
+
+	a.logger.Info("Configuración del servidor de estudios actualizada correctamente", "host", server.Host, "port", server.Port)
+	return nil
 }
 
 func (a *App) GetDiscLabelConfig() config.DiscLabelConfig {
@@ -340,42 +370,43 @@ func (a *App) SaveDiscLabelConfig(labelConfig config.DiscLabelConfig) error {
 	a.cfg = updated
 	return nil
 }
+
 // GetLicenseToken devuelve el token guardado en config.json
 func (a *App) GetLicenseToken() string {
-    a.mu.RLock()
-    defer a.mu.RUnlock()
-    return a.cfg.LicenseToken
+	a.mu.RLock()
+	defer a.mu.RUnlock()
+	return a.cfg.LicenseToken
 }
 
 // SaveLicenseToken valida y persiste el token de la licencia en la configuración
 func (a *App) SaveLicenseToken(token string) (LicenseResponse, error) {
-    token = strings.TrimSpace(token)
-    status := a.licenseService.ValidateLicense(token)
-    
-    if !status.IsValid {
-        return LicenseResponse{
-            IsValid:   false,
-            MachineID: status.MachineID,
-            IsVM:      status.IsVM,
-            Error:     status.Error,
-        }, errors.New("licencia inválida")
-    }
+	token = strings.TrimSpace(token)
+	status := a.licenseService.ValidateLicense(token)
 
-    a.mu.Lock()
-    updated := a.cfg
-    updated.LicenseToken = token
-    if err := config.Save(a.configPath, updated); err != nil {
-        a.mu.Unlock()
-        return LicenseResponse{}, errors.New("no se pudo guardar la licencia en el archivo de configuración")
-    }
-    a.cfg = updated
-    a.mu.Unlock()
+	if !status.IsValid {
+		return LicenseResponse{
+			IsValid:   false,
+			MachineID: status.MachineID,
+			IsVM:      status.IsVM,
+			Error:     status.Error,
+		}, errors.New("licencia inválida")
+	}
 
-    return LicenseResponse{
-        IsValid:   true,
-        MachineID: status.MachineID,
-        IsVM:      status.IsVM,
-    }, nil
+	a.mu.Lock()
+	updated := a.cfg
+	updated.LicenseToken = token
+	if err := config.Save(a.configPath, updated); err != nil {
+		a.mu.Unlock()
+		return LicenseResponse{}, errors.New("no se pudo guardar la licencia en el archivo de configuración")
+	}
+	a.cfg = updated
+	a.mu.Unlock()
+
+	return LicenseResponse{
+		IsValid:   true,
+		MachineID: status.MachineID,
+		IsVM:      status.IsVM,
+	}, nil
 }
 func storeDiscLabelLogo(configPath, sourcePath string) (string, error) {
 	extension := strings.ToLower(filepath.Ext(sourcePath))
@@ -534,6 +565,9 @@ func (a *App) CreateDiscJob(uid string) (models.DiscJob, error) {
 		return a.fail(job, e)
 	}
 	job.EpsonJobPath = path
+	if e = a.recordJob(job); e != nil {
+		return a.fail(job, e)
+	}
 	if status := a.ValidateLicense(a.GetLicenseToken()); !status.IsValid {
 		return a.fail(job, fmt.Errorf("La licencia dejó de ser válida antes de enviar la grabación: %s", status.Error))
 	}
@@ -545,9 +579,9 @@ func (a *App) CreateDiscJob(uid string) (models.DiscJob, error) {
 	if job.CreatedAt.IsZero() {
 		job.CreatedAt = job.UpdatedAt
 	}
-	a.mu.Lock()
-	a.jobs = append(a.jobs, job)
-	a.mu.Unlock()
+	if e = a.recordJob(job); e != nil {
+		return job, fmt.Errorf("El trabajo ya fue enviado a Epson, pero no se pudo actualizar el historial. No lo reenvíe: %w", e)
+	}
 	return job, nil
 }
 func (a *App) fail(j models.DiscJob, e error) (models.DiscJob, error) {
@@ -555,9 +589,9 @@ func (a *App) fail(j models.DiscJob, e error) (models.DiscJob, error) {
 	j.ErrorMessage = e.Error()
 	j.UpdatedAt = time.Now()
 	a.logger.Error("Disc job failed", "job_id", j.ID, "error", e)
-	a.mu.Lock()
-	a.jobs = append(a.jobs, j)
-	a.mu.Unlock()
+	if err := a.recordJob(j); err != nil {
+		e = fmt.Errorf("%w; historial: %v", e, err)
+	}
 	return j, e
 }
 func (a *App) ListJobs() []models.DiscJob {
@@ -565,13 +599,17 @@ func (a *App) ListJobs() []models.DiscJob {
 	defer a.mu.Unlock()
 	if a.monitor != nil {
 		for i := range a.jobs {
+			if a.jobs[i].Status == models.Completed || a.jobs[i].Status == models.Failed {
+				continue
+			}
 			state, err := a.monitor.GetStatus(a.ctx, a.jobs[i])
 			if err != nil {
 				a.logger.Error("Epson status check failed", "job_id", a.jobs[i].ID, "error", err)
 				continue
 			}
 			if state.Status != a.jobs[i].Status || state.Technical != a.jobs[i].EpsonState || state.ErrorCode != a.jobs[i].ErrorCode || state.TechnicalStatus != a.jobs[i].TechnicalStatus || state.DetailStatus != a.jobs[i].DetailStatus || state.ErrorMessage != a.jobs[i].ErrorMessage {
-				previous := a.jobs[i].Status
+				previousJob := a.jobs[i]
+				previous := previousJob.Status
 				a.jobs[i].Status = state.Status
 				a.jobs[i].EpsonState = state.Technical
 				a.jobs[i].ErrorCode = state.ErrorCode
@@ -579,6 +617,15 @@ func (a *App) ListJobs() []models.DiscJob {
 				a.jobs[i].DetailStatus = state.DetailStatus
 				a.jobs[i].ErrorMessage = state.ErrorMessage
 				a.jobs[i].UpdatedAt = time.Now()
+				if a.history != nil {
+					if err := a.history.Save(a.jobs[i]); err != nil {
+						a.jobs[i] = previousJob
+						a.historyError = "No se pudo actualizar el historial. Compruebe espacio y permisos de la carpeta de datos."
+						a.logger.Error("persist job status", "error", err)
+						continue
+					}
+					a.historyError = ""
+				}
 				a.logger.Info("[EPSON] Job state changed", "job_id", a.jobs[i].ID, "previous_status", previous, "new_status", state.Status, "technical_state", state.Technical)
 				if state.Status == models.Failed {
 					a.logger.Error("[EPSON] Job failed", "job_id", a.jobs[i].ID, "error_code", state.ErrorCode, "status", state.TechnicalStatus, "detail_status", state.DetailStatus)

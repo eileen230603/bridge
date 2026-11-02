@@ -73,6 +73,7 @@ function App({initialStatus, initialJobs,}: {
   const [studies, setStudies] = React.useState<Study[]>([]);
   const [studyQuery, setStudyQuery] = React.useState("");
   const [jobs, setJobs] = React.useState<DiscJob[]>(initialJobs);
+  const [historyError, setHistoryError] = React.useState("");
   const [loading, setLoading] = React.useState(false);
 
   const [submittingStudies, setSubmittingStudies] = React.useState<Set<string>>(
@@ -257,6 +258,8 @@ function App({initialStatus, initialJobs,}: {
       try {
         const value = await api()?.ListJobs();
         if (active && value) setJobs(value);
+        const error = await api()?.GetHistoryError();
+        if (active) setHistoryError(error ?? "");
       } catch {
         // A transient polling error must not hide the last known job state.
       }
@@ -468,9 +471,10 @@ function App({initialStatus, initialJobs,}: {
         </section>
         <section className="panel jobs">
           <div className="panelTitle">
-            <h2>Trabajos</h2>
+            <h2>Historial de trabajos</h2>
             <span className="statusline">● {message}</span>
           </div>
+          {historyError && <p role="alert" style={{color: "#ff9292"}}>{historyError}</p>}
           {jobs.length === 0 ? (
             <div className="empty">
               Los trabajos preparados aparecerán aquí.

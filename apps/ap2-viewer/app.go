@@ -11,7 +11,9 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/local/dicom-disc-suite/apps/ap2-viewer/internal/environment"
@@ -60,6 +62,7 @@ type App struct {
 	ctx           context.Context
 	validator     environment.ExecutionEnvironmentValidator
 	activeDataDir string
+	mu            sync.RWMutex
 }
 
 func NewApp(validator environment.ExecutionEnvironmentValidator) *App {
@@ -94,6 +97,17 @@ func resolveStudyPath(contentDir, executable, workDir string) (string, string) {
 
 		if isStudyDir(exeDir) {
 			return studyPaths(exeDir)
+		}
+	}
+
+	// A distributed viewer must never discover unrelated development studies.
+	// Development builds live under apps/ap2-viewer/build/bin; other locations
+	// only open content beside the executable (or the explicit environment path).
+	if executable != "" {
+		exeDir := filepath.Dir(executable)
+		developmentBuild := filepath.Base(exeDir) == "bin" && filepath.Base(filepath.Dir(exeDir)) == "build" && filepath.Base(filepath.Dir(filepath.Dir(exeDir))) == "ap2-viewer"
+		if !developmentBuild {
+			return studyPaths(portableViewerDir(executable))
 		}
 	}
 
@@ -195,7 +209,9 @@ func (a *App) LoadStudy() ViewerState {
 	}
 
 	dataPath, dataPathDir := a.resolveStudyPath() // dataPath es el archivo study.dat
-	a.activeDataDir = dataPathDir
+	a.mu.Lock()
+	a.activeDataDir = ""
+	a.mu.Unlock()
 
 	info, e := os.Stat(dataPathDir)
 	if e != nil || !info.IsDir() {
@@ -226,6 +242,13 @@ func (a *App) LoadStudy() ViewerState {
 	}
 	m.Series, state.ImageCount = visibleImageSeries(m.Series)
 	state.Manifest = &m
+	if state.ImageCount == 0 {
+		state.Error = "El estudio no contiene series de imágenes para visualizar."
+		return state
+	}
+	a.mu.Lock()
+	a.activeDataDir = dataPathDir
+	a.mu.Unlock()
 
 	return state
 }
@@ -240,6 +263,11 @@ func visibleImageSeries(series []ViewerSeries) ([]ViewerSeries, int) {
 		if strings.EqualFold(strings.TrimSpace(item.Modality), "SR") {
 			continue
 		}
+		if len(item.Files) == 0 {
+			continue
+		}
+		item.Files = append([]ViewerFile(nil), item.Files...)
+		sort.SliceStable(item.Files, func(i, j int) bool { return item.Files[i].Position < item.Files[j].Position })
 		visible = append(visible, item)
 		imageCount += len(item.Files)
 	}
@@ -247,7 +275,15 @@ func visibleImageSeries(series []ViewerSeries) ([]ViewerSeries, int) {
 }
 
 func (a *App) GetDicomFile(uidOrFilename string) (string, error) {
-	_, dataDir := a.resolveStudyPath()
+	a.mu.RLock()
+	dataDir := a.activeDataDir
+	a.mu.RUnlock()
+	if dataDir == "" {
+		return "", errors.New("Primero debe abrirse un estudio válido.")
+	}
+	if uidOrFilename == "" || uidOrFilename == "." || uidOrFilename == ".." || strings.ContainsAny(uidOrFilename, "/\\:") {
+		return "", errors.New("Identificador de archivo DICOM inválido.")
+	}
 
 	cleanFilename := filepath.Base(uidOrFilename)
 
@@ -264,4 +300,12 @@ func (a *App) GetDicomFile(uidOrFilename string) (string, error) {
 	}
 
 	return base64.StdEncoding.EncodeToString(bytes), nil
+}
+
+func portableViewerDir(executable string) string {
+	dir := filepath.Dir(executable)
+	if strings.Contains(filepath.ToSlash(executable), ".app/Contents/MacOS/") {
+		dir = filepath.Clean(filepath.Join(dir, "..", "..", ".."))
+	}
+	return dir
 }

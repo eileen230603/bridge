@@ -1,0 +1,30 @@
+{
+  "temporaryDirectory": "runtime/temp",
+  "completedDirectory": "runtime/completed",
+  "logFile": "runtime/logs/ap1.log",
+  "studyApi": {
+    "protocol": "http",
+    "host": "",
+    "port": 4000,
+    "timeoutSeconds": 15
+  },
+  "epson": {
+    "printMode": 0,
+    "labelType": 0,
+    "monitoringFolder": "C:\\EPSON\\TDBridge\\Orders",
+    "stagingDirectory": "runtime/epson-staging",
+    "enabled": true,
+    "defaultCopies": 1,
+    "discType": "DVD",
+    "format": "UDF102"
+  },
+  "discLabel": {
+    "hospitalName": "",
+    "logoPath": ""
+  },
+  "cleanupAfterHours": 4,
+  "cleanupEnabled": false,
+  "licenseKey": "",
+  "licenseToken": "",
+  "historyFile": "runtime/history.sqlite"
+}

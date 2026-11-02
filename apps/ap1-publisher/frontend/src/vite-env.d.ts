@@ -16,6 +16,7 @@ interface Window {
         CancelSearch(): Promise<void>;
         CreateDiscJob(uid: string): Promise<DiscJob>;
         ListJobs(): Promise<DiscJob[]>;
+        GetHistoryError(): Promise<string>;
         GetSystemStatus(): Promise<{
           studyServer: string;
           studyServerAddress: string;

@@ -20,9 +20,11 @@ Pendiente para una instalación real:
 
 - Confirmar permisos de la cuenta del servicio TD Bridge sobre las rutas de contenido y etiqueta.
 - Elegir ajustes locales opcionales (publisher, stackers, área/calidad de impresión) sin fijarlos a un modelo en AP1.
-- El monitoreo durante la ejecución correlaciona cada trabajo por `JOB_ID` y observa JDF/RJD/INP/STP/DON/ERR. Falta persistir trabajos entre reinicios y, si se requiere mayor detalle, interpretar STF para progreso, códigos de dispositivo, discos y tinta.
-- Validar físicamente el soporte, capacidad, impresión y resultado final con Total Disc Maker/TD Bridge instalados.
+- El monitoreo durante la ejecución correlaciona cada trabajo por `JOB_ID` y observa JDF/RJD/INP/STP/DON/ERR. El historial ya se conserva en SQLite entre reinicios. Queda ampliar la interpretación de STF si se requiere mayor detalle de progreso, dispositivo, discos y tinta. Véase [rutas e historial](ap1-paths-history.md).
+- La prueba de grabación en la instalación actual fue confirmada como satisfactoria por el usuario.
 
 ## Viewer
 
-Quedan pendientes Cornerstone, codecs, indexación DICOM/DICOMDIR, validación desde medio óptico, firma/integridad, manejo de estudios grandes y matriz de builds multiplataforma.
+AP2 ya integra Cornerstone y su cargador DICOM. Se verificaron renderizado, miniaturas, navegación con rueda y cambio de serie con un paquete local. El ejecutable Windows actualizado se integra en AP1. Véase [verificación del visor](ap2-viewer.md).
+
+Quedan fuera de esta verificación: importar discos DICOMDIR ajenos al formato de AP1, comprobar cada sintaxis de transferencia y DICOM multiframe, pruebas de rendimiento extremo y validación de los builds macOS/Linux.

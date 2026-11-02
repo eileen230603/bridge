@@ -1,0 +1,15 @@
+ENTREGA LIMPIA — WINDOWS
+
+AP1: abrir AP1\DICOM Disc Publisher.exe desde una carpeta con permisos de escritura.
+Configurar el servidor de estudios y activar la licencia del equipo.
+Verificar que la carpeta de órdenes de TD Bridge coincida con AP1\config.json.
+El historial comienza vacío y se crea durante el uso.
+
+AP2: AP2\Symphony Viewer.exe es el visor sin estudios.
+Para visualizar, debe estar junto a study.dat y la carpeta data de un paquete generado por AP1.
+AP1 ya incluye este visor y lo agrega automáticamente a los discos nuevos.
+
+Esta entrega no contiene estudios, historial, licencia activada, configuración del cliente ni claves del emisor.
+El administrador de licencias se conserva por separado y no se distribuye al cliente.
+
+Requisito de escritorio: Microsoft Edge WebView2 Runtime.

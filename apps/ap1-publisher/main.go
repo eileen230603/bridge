@@ -22,6 +22,7 @@ func main() {
 		logStartupFailure("initialize application", err)
 		return
 	}
+	defer app.closeHistory()
 	err = wails.Run(&options.App{Title: "DICOM Disc Publisher", Width: 1280, Height: 820, MinWidth: 1000, MinHeight: 650, AssetServer: &assetserver.Options{Assets: assets}, BackgroundColour: &options.RGBA{R: 9, G: 18, B: 31, A: 1}, OnStartup: app.startup, Bind: []interface{}{app}})
 	if err != nil {
 		logStartupFailure("run Wails", err)

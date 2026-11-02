@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { createRoot } from "react-dom/client";
 // Importar el visor de la librería y sus estilos
 import type { DicomStudy } from "@medicaresoft/dicom-viewer";
@@ -66,9 +66,10 @@ const delay = (milliseconds: number) => new Promise<void>((resolve) => window.se
 function startupError(state: State): string | null {
   if (state.error) {
     const message = state.error.toLowerCase();
-    if (message.includes("directorio") || message.includes("data")) return "No se encontró la carpeta data.";
+    if (message.includes("directorio")) return "No se encontró la carpeta data.";
     if (message.includes("manifiesto") && message.includes("válido")) return "El archivo del estudio no es válido.";
-    if (message.includes("manifiesto") || message.includes("study.json")) return "No se encontró study.json.";
+    if (message.includes("descifrar")) return "El archivo study.dat está dañado o no es compatible.";
+    if (message.includes("study.dat")) return "No se pudo leer study.dat junto a la carpeta data.";
     return state.error.split("\n")[0];
   }
   if (!state.dataFound) return "No se encontró la carpeta data.";
@@ -133,12 +134,19 @@ function App({ state, Viewer }: { state: State; Viewer: any }) {
     {},
   );
 
-  const handleGetDicomFile = async (param: any): Promise<Blob> => {
+  const [fileError, setFileError] = useState("");
+  const handleGetDicomFile = useCallback(async (param: any): Promise<Blob> => {
     let actualUid =
       typeof param === "string"
         ? param
         : param?.instanceUid || param?.file || param?.id || "";
-    const base64Data = await safeGetDicomFile(actualUid);
+    let base64Data: string;
+    try {
+      base64Data = await safeGetDicomFile(actualUid);
+    } catch {
+      setFileError("No se pudo leer una imagen del disco. Comprueba que el disco o la carpeta sigan disponibles y vuelve a abrir el estudio.");
+      throw new Error("No se pudo leer la imagen DICOM.");
+    }
 
     if (!base64Data) {
       throw new Error(`El archivo ${actualUid} no existe.`);
@@ -153,163 +161,42 @@ function App({ state, Viewer }: { state: State; Viewer: any }) {
     }
 
     return new Blob([bytes.buffer], { type: "application/dicom" });
-  };
+  }, []);
 
-  // Cargar y convertir los archivos DICOM a formato PNG ligero para las miniaturas
+  // Use the same DICOM decoder as the viewport, including compressed and signed pixels.
   useEffect(() => {
-    if (!state?.manifest?.series) return;
-
-    state.manifest.series
-      .filter((s: any) => s.modality?.trim().toUpperCase() !== "SR")
-      .forEach(async (s: any) => {
-        const firstFile = s.files?.[0];
-        const uid =
-          typeof firstFile === "string" ? firstFile : firstFile?.instanceUid;
-        if (!uid || thumbnailUrls[uid]) return;
-
-        // Los documentos no pixelados que sí sean visibles usan un icono.
-        if (s.modality === "DOC") {
-          const docCanvas = document.createElement("canvas");
-          docCanvas.width = 128;
-          docCanvas.height = 128;
-          const ctx = docCanvas.getContext("2d");
-          if (ctx) {
-            ctx.fillStyle = "#1e1e2d";
-            ctx.fillRect(0, 0, 128, 128);
-            ctx.fillStyle = "#8888a0";
-            ctx.font = "bold 14px sans-serif";
-            ctx.textAlign = "center";
-            ctx.fillText("DOCUMENTO", 64, 60);
-            ctx.fillText("DICOM", 64, 78);
-            setThumbnailUrls((prev) => ({
-              ...prev,
-              [uid]: docCanvas.toDataURL("image/png"),
-            }));
-          }
-          return;
-        }
-
+    let cancelled = false;
+    const series = state.manifest?.series || [];
+    const buildThumbnails = async () => {
+      for (const s of series) {
+        if (cancelled) return;
+        const uid = s.files?.[0]?.instanceUid;
+        if (!uid || ["SR", "DOC"].includes(s.modality?.trim().toUpperCase())) continue;
+        let url = "";
         try {
-        const blob = await handleGetDicomFile(uid);
-        const arrayBuffer = await blob.arrayBuffer();
-        const byteArray = new Uint8Array(arrayBuffer);
-        const dataView = new DataView(arrayBuffer);
-
-        let rows = 256;
-        let cols = 256;
-        let pixelOffset = -1;
-        let isBigEndian = false;
-
-        for (let i = 0; i < byteArray.length - 8; i++) {
-          // Detectar Transfer Syntax para verificar si es Big-Endian (1.2.840.10008.1.2.2)
-          if (
-            byteArray[i] === 0x02 &&
-            byteArray[i + 1] === 0x00 &&
-            byteArray[i + 2] === 0x10 &&
-            byteArray[i + 3] === 0x00
-          ) {
-            if (
-              byteArray[i + 8] === 0x31 &&
-              byteArray[i + 9] === 0x2e &&
-              byteArray[i + 10] === 0x32 &&
-              byteArray[i + 11] === 0x2e &&
-              byteArray[i + 12] === 0x38
-            ) {
-              // Verifica si contiene la secuencia Big Endian Explicit
-              const str = String.fromCharCode(
-                ...byteArray.slice(i + 8, i + 25),
-              );
-              if (str.includes("1.2.840.10008.1.2.2")) isBigEndian = true;
-            }
-          }
-          // Rows (0x0028, 0x0010)
-          if (
-            byteArray[i] === 0x28 &&
-            byteArray[i + 1] === 0x00 &&
-            byteArray[i + 2] === 0x10 &&
-            byteArray[i + 3] === 0x00
-          ) {
-            rows = dataView.getUint16(i + 8, !isBigEndian);
-          }
-          // Cols (0x0028, 0x0011)
-          if (
-            byteArray[i] === 0x28 &&
-            byteArray[i + 1] === 0x00 &&
-            byteArray[i + 2] === 0x11 &&
-            byteArray[i + 3] === 0x00
-          ) {
-            cols = dataView.getUint16(i + 8, !isBigEndian);
-          }
-          // PixelData (0x7FE0, 0x0010)
-          if (
-            byteArray[i] === 0xe0 &&
-            byteArray[i + 1] === 0x7f &&
-            byteArray[i + 2] === 0x10 &&
-            byteArray[i + 3] === 0x00
-          ) {
-            pixelOffset = i + 12;
-            break;
-          }
+          const blob = await handleGetDicomFile(uid);
+          if (cancelled) return;
+          url = URL.createObjectURL(blob);
+          const cornerstone = (window as any).cornerstone;
+          if (!cornerstone) continue;
+          const image = await cornerstone.loadImage("wadouri:" + url);
+          if (cancelled) return;
+          const canvas = document.createElement("canvas");
+          canvas.width = 128;
+          canvas.height = 128;
+          cornerstone.renderToCanvas(canvas, image);
+          const thumbnail = canvas.toDataURL("image/png");
+          setThumbnailUrls(prev => ({ ...prev, [uid]: thumbnail }));
+        } catch {
+          // A missing thumbnail must not prevent opening other series.
+        } finally {
+          if (url) URL.revokeObjectURL(url);
         }
-
-        if (pixelOffset !== -1 && rows > 0 && cols > 0) {
-          const totalPixels = rows * cols;
-          const rawValues = new Uint16Array(totalPixels);
-          let minVal = 65535;
-          let maxVal = 0;
-
-          for (let i = 0; i < totalPixels; i++) {
-            const rawIdx = pixelOffset + i * 2;
-            if (rawIdx + 1 < byteArray.length) {
-              const val = dataView.getUint16(rawIdx, !isBigEndian);
-              rawValues[i] = val;
-              if (val < minVal) minVal = val;
-              if (val > maxVal) maxVal = val;
-            }
-          }
-
-          const range = maxVal - minVal || 1;
-          const origCanvas = document.createElement("canvas");
-          origCanvas.width = cols;
-          origCanvas.height = rows;
-          const origCtx = origCanvas.getContext("2d");
-
-          if (origCtx) {
-            const imgData = origCtx.createImageData(cols, rows);
-            const data = imgData.data;
-
-            for (let i = 0; i < totalPixels; i++) {
-              const normalized = Math.floor(
-                ((rawValues[i] - minVal) / range) * 255,
-              );
-              const outIdx = i * 4;
-              data[outIdx] = normalized;
-              data[outIdx + 1] = normalized;
-              data[outIdx + 2] = normalized;
-              data[outIdx + 3] = 255;
-            }
-
-            origCtx.putImageData(imgData, 0, 0);
-
-            const thumbCanvas = document.createElement("canvas");
-            thumbCanvas.width = 128;
-            thumbCanvas.height = 128;
-            const thumbCtx = thumbCanvas.getContext("2d");
-
-            if (thumbCtx) {
-              thumbCtx.drawImage(origCanvas, 0, 0, 128, 128);
-              setThumbnailUrls((prev) => ({
-                ...prev,
-                [uid]: thumbCanvas.toDataURL("image/png"),
-              }));
-            }
-          }
-        }
-        } catch (e) {
-          console.error("Error procesando miniatura:", e);
-        }
-      });
-  }, [state]);
+      }
+    };
+    void buildThumbnails();
+    return () => { cancelled = true; };
+  }, [state, handleGetDicomFile]);
 
   const handleGetThumbnailUrl = (param: any): string => {
     const uid =
@@ -330,18 +217,8 @@ function App({ state, Viewer }: { state: State; Viewer: any }) {
       window.removeEventListener("contextmenu", enableContextMenu, true);
   }, []);
 
-  if (!state || !state.manifest) {
-    return (
-      <div style={{ padding: "24px", color: "#fff", background: "#040d17" }}>
-        <h2>No se pudo cargar el estudio</h2>
-        <p>{state?.error || "No se encontró study.json ni la carpeta data."}</p>
-        {state?.dataPath && <small>Ruta buscada: {state.dataPath}</small>}
-      </div>
-    );
-  }
-
   // 6. Formateo del objeto DicomStudy
-  const formattedStudy: DicomStudy = {
+  const formattedStudy: DicomStudy = useMemo(() => ({
     id: state.manifest?.id || "N/A",
     studyInstanceUid: state.manifest?.studyInstanceUid || "",
     patientName: state.manifest?.patientName || "Paciente Sin Nombre",
@@ -363,11 +240,13 @@ function App({ state, Viewer }: { state: State; Viewer: any }) {
           instanceUid: typeof f === "string" ? f : f.instanceUid,
         })),
       })),
-  };
+  }), [state.manifest]);
 
   return (
     <div className="viewer-enter" style={{ backgroundColor: "#000" }}>
+      {fileError && <div role="alert" className="viewer-file-error">{fileError}<button onClick={() => window.location.reload()}>Volver a abrir</button></div>}
       <Viewer
+        maxConcurrentDownloads={3}
         study={formattedStudy}
         getDicomFile={handleGetDicomFile}
         getThumbnailUrl={handleGetThumbnailUrl}
