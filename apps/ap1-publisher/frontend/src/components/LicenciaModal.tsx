@@ -9,7 +9,7 @@ interface LicenciaModalProps {
 }
 
 export const LicenciaModal: React.FC<LicenciaModalProps> = ({ isOpen, onClose }) => {
-  const { checkLicense } = useLicense();
+  const { checkLicense, isValid } = useLicense();
   const [machineId, setMachineId] = useState<string>('');
   const [tokenInput, setTokenInput] = useState<string>('');
   const [errorMsg, setErrorMsg] = useState<string>('');
@@ -23,6 +23,13 @@ export const LicenciaModal: React.FC<LicenciaModalProps> = ({ isOpen, onClose })
         .catch((err) => setErrorMsg('No se pudo obtener el Machine ID: ' + err));
     }
   }, [isOpen]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [isOpen, onClose]);
 
   if (!isOpen) return null;
 
@@ -57,9 +64,12 @@ export const LicenciaModal: React.FC<LicenciaModalProps> = ({ isOpen, onClose })
   };
 
   return (
-    <div className="license-modal-overlay">
-      <div className="license-modal-card">
-        <h3 className="license-modal-title">Gestión de Licencia</h3>
+    <div className="license-modal-overlay" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+      <div className="license-modal-card" role="dialog" aria-modal="true" aria-labelledby="license-title">
+        <div className="license-modal-head">
+          <h3 className="license-modal-title" id="license-title">Licencia</h3>
+          <span className={`license-status ${isValid ? 'ok' : 'bad'}`}>{isValid ? 'Activa' : 'Inactiva'}</span>
+        </div>
 
         <div className="license-field-group">
           <label className="license-label">Identificador de este equipo (Machine ID):</label>
@@ -87,7 +97,7 @@ export const LicenciaModal: React.FC<LicenciaModalProps> = ({ isOpen, onClose })
           />
         </div>
 
-        {errorMsg && <div className="license-error-banner">⚠️ {errorMsg}</div>}
+        {errorMsg && <div className="license-error-banner">{errorMsg}</div>}
 
         <div className="license-actions-row">
           <button type="button" onClick={onClose} className="btn-secondary">

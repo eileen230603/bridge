@@ -1,10 +1,16 @@
 {
   "$schema": "https://wails.io/schemas/config.v2.json",
-  "name": "DICOM Disc Publisher",
-  "outputfilename": "DICOM Disc Publisher",
+  "name": "Symphony Media Export",
+  "outputfilename": "Symphony Media Export",
   "frontend:install": "npm install",
   "frontend:build": "npm run build",
   "frontend:dev:watcher": "npm run dev",
   "frontend:dev:serverUrl": "auto",
-  "author": { "name": "DicomDiscSuite" }
+  "author": { "name": "MedicareSoft Ingeniería SRL" },
+  "info": {
+    "companyName": "MedicareSoft Ingeniería SRL",
+    "productName": "Symphony Media Export",
+    "productVersion": "1.0.0",
+    "copyright": "© MedicareSoft Ingeniería SRL"
+  }
 }

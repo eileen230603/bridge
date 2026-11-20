@@ -28,7 +28,8 @@ type App struct {
 	ctx              context.Context
 	cfg              config.Config
 	configPath       string
-	studyRepo        *adapters.HttpStudyRepository
+	studyRepo        studyRepository
+	devMode          bool
 	publisher        adapters.EpsonPublisher
 	monitor          adapters.EpsonJobMonitor
 	builder          *services.StudyPackageBuilder
@@ -72,7 +73,16 @@ func NewApp() (*App, error) {
 	cfgPath, found := resolveAP1ConfigPath(strings.TrimSpace(os.Getenv("AP1_CONFIG")), executable, workDir)
 	var cfg config.Config
 	var e error
-	if found {
+	dev := devModeEnabled()
+	if dev {
+		devDir := devRuntimeDir(workDir)
+		_ = os.MkdirAll(devDir, 0o755)
+		cfgPath = filepath.Join(devDir, "config.json")
+		cfg, e = config.LoadBytes(defaultConfig, devDir)
+		if e == nil {
+			applyDevConfig(&cfg, devDir)
+		}
+	} else if found {
 		cfg, e = config.Load(cfgPath)
 	} else {
 		// Embedded defaults use runtime/ beside the portable configuration.
@@ -95,7 +105,10 @@ func NewApp() (*App, error) {
 		logOutput = io.MultiWriter(os.Stdout, logFile)
 	}
 	logger := slog.New(slog.NewJSONHandler(logOutput, nil))
-	studyRepo := adapters.NewHttpStudyRepository(cfg.StudyAPI)
+	var studyRepo studyRepository = adapters.NewHttpStudyRepository(cfg.StudyAPI)
+	if dev {
+		studyRepo = devStudyRepository{}
+	}
 	if !cfg.Epson.Enabled {
 		return nil, fmt.Errorf("TD Bridge está deshabilitado en la configuración")
 	}
@@ -109,7 +122,10 @@ func NewApp() (*App, error) {
 		LabelType:        cfg.Epson.LabelType,
 		Logger:           logger}
 	builder := &services.StudyPackageBuilder{Repository: studyRepo, TempRoot: cfg.TemporaryDirectory, ViewerBuilds: viewerBuilds, Logger: logger}
-	monitor := adapters.TdBridgeJobMonitor{MonitoringFolder: cfg.Epson.MonitoringFolder}
+	var monitor adapters.EpsonJobMonitor = adapters.TdBridgeJobMonitor{MonitoringFolder: cfg.Epson.MonitoringFolder}
+	if dev {
+		monitor = devJobMonitor{}
+	}
 	licenseService := services.NewLicenseService()
 	history, err := services.OpenJobHistory(cfg.HistoryFile)
 	if err != nil {
@@ -120,7 +136,7 @@ func NewApp() (*App, error) {
 		history.Close()
 		return nil, fmt.Errorf("leer historial: %w", err)
 	}
-	app := &App{cfg: cfg, configPath: cfgPath, studyRepo: studyRepo, publisher: publisher, monitor: monitor, builder: builder, licenseService: licenseService, logger: logger, studies: map[string]models.Study{}, studyServerState: "No probado", history: history, jobs: jobs}
+	app := &App{cfg: cfg, configPath: cfgPath, studyRepo: studyRepo, publisher: publisher, monitor: monitor, builder: builder, licenseService: licenseService, devMode: dev, logger: logger, studies: map[string]models.Study{}, studyServerState: "No probado", history: history, jobs: jobs}
 	for i := range app.jobs {
 		job := app.jobs[i]
 		switch job.Status {
@@ -199,6 +215,9 @@ func (a *App) GetMachineID() (string, error) {
 
 // ValidateLicense comprueba la validez del token contra el Machine ID
 func (a *App) ValidateLicense(token string) LicenseResponse {
+	if a.devMode {
+		return LicenseResponse{IsValid: true, MachineID: "DEV-MACHINE", Product: "DEV", Indefinite: true}
+	}
 	token = strings.TrimSpace(token)
 	isVm := machineid.IsVM()
 
@@ -373,6 +392,9 @@ func (a *App) SaveDiscLabelConfig(labelConfig config.DiscLabelConfig) error {
 
 // GetLicenseToken devuelve el token guardado en config.json
 func (a *App) GetLicenseToken() string {
+	if a.devMode {
+		return "dev-token"
+	}
 	a.mu.RLock()
 	defer a.mu.RUnlock()
 	return a.cfg.LicenseToken
@@ -439,6 +461,9 @@ func (a *App) TestServerConnection(server config.ServerConfig) (result Connectio
 		a.studyServerState = result.Status
 		a.mu.Unlock()
 	}()
+	if a.devMode {
+		return ConnectionTestResult{Status: "Conectado"}
+	}
 	server.Protocol = strings.ToLower(strings.TrimSpace(server.Protocol))
 	server.Host = strings.TrimSpace(server.Host)
 	base, err := server.BaseAddress()

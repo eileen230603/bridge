@@ -18,7 +18,7 @@ docs/                  arquitectura, flujo e integraciones pendientes
 src/                   prototipo .NET conservado
 ```
 
-## AP1 — DICOM Disc Publisher
+## AP1 — Symphony Media Export
 
 ```text
 Buscar en Symphony → descargar ZIP DICOM → preparar paquete → agregar AP2

@@ -1,4 +1,5 @@
 import React from "react";
+import "./theme";
 import { createRoot } from "react-dom/client";
 import "./style.css";
 import "./jobs.css";
@@ -9,6 +10,10 @@ import { LicenseGuard } from "./components/LicenseGuard";
 import { LicenseProvider, useLicense } from "./components/LicenseContext";
 import medicareLogo from "./assets/MEDICARESOFTPNG.png";
 import LicenciaModal from "./components/LicenciaModal";
+import { StudiesView } from "./components/StudiesView";
+import { HistoryView } from "./components/HistoryView";
+import { SettingsView } from "./components/SettingsView";
+import { Sidebar } from "./components/Sidebar";
 type Study = {
   studyInstanceUID: string;
   patientName: string;
@@ -75,6 +80,9 @@ function App({initialStatus, initialJobs,}: {
   const [jobs, setJobs] = React.useState<DiscJob[]>(initialJobs);
   const [historyError, setHistoryError] = React.useState("");
   const [loading, setLoading] = React.useState(false);
+  const [view, setView] = React.useState<"studies" | "history" | "settings">("studies");
+  const [searched, setSearched] = React.useState(false);
+  const [searchError, setSearchError] = React.useState("");
 
   const [submittingStudies, setSubmittingStudies] = React.useState<Set<string>>(
     () => new Set(),
@@ -84,113 +92,17 @@ function App({initialStatus, initialJobs,}: {
   );
   const [message, setMessage] = React.useState("Listo para buscar estudios");
   const [status, setStatus] = React.useState<SystemStatus>(initialStatus);
-  const [settingsOpen, setSettingsOpen] = React.useState(false);
-  const [serverConfig, setServerConfig] = React.useState<ServerConfig>({
-    protocol: "http",
-    host: "192.168.0.102",
-    port: 4000,
-    timeoutSeconds: 60,
-  });
-  const [discLabelConfig, setDiscLabelConfig] = React.useState<DiscLabelConfig>(
-    { hospitalName: "", logoPath: "" },
-  );
-  const [labelPreview, setLabelPreview] = React.useState("");
-  const [labelError, setLabelError] = React.useState("");
-  const [connection, setConnection] = React.useState<ConnectionTestResult>({
-    status: "No probado",
-    message: "",
-  });
-  const [settingsBusy, setSettingsBusy] = React.useState(false);
-  const [epsonConfig, setEpsonConfig] = React.useState<EpsonConfig>({
-    discType: "DVD",
-    format: "UDF102",
-    printMode: 0,
-    labelType: 0,
-  });
-  async function openSettings() {
-    const backend = api();
-    const [server, labelConfig, epson] = await Promise.all([
-      backend?.GetServerConfig(),
-      backend?.GetDiscLabelConfig(),
-      backend?.GetEpsonConfig?.(), // Asumiendo el método expuesto en Go
-    ]);
-    if (server) setServerConfig(server);
-    if (labelConfig) setDiscLabelConfig(labelConfig);
-    if (epson) {
-      setEpsonConfig({
-        discType: epson.discType || "DVD",
-        format: epson.format || "UDF102",
-        printMode: epson.printMode ?? 0,
-        labelType: epson.labelType ?? 0,
-      });
-    }
-    setConnection({ status: "No probado", message: "" });
-    setSettingsOpen(true);
-  }
-  async function selectDiscLabelLogo() {
-    const path = await api()?.SelectDiscLabelLogo();
-    if (path) setDiscLabelConfig((current) => ({ ...current, logoPath: path }));
-  }
-  React.useEffect(() => {
-    if (!settingsOpen) return;
-    let active = true;
-    const timer = window.setTimeout(async () => {
-      try {
-        const preview = await api()?.GetDiscLabelPreview(discLabelConfig);
-        if (active) {
-          setLabelPreview(preview ?? "");
-          setLabelError("");
-        }
-      } catch {
-        if (active) {
-          setLabelPreview("");
-          setLabelError("No se pudo cargar el logo seleccionado.");
-        }
-      }
-    }, 250);
-    return () => {
-      active = false;
-      window.clearTimeout(timer);
-    };
-  }, [settingsOpen, discLabelConfig]);
-  async function testConnection() {
-    setSettingsBusy(true);
-    try {
-      setConnection(
-        (await api()?.TestServerConnection(serverConfig)) ?? {
-          status: "Error",
-          message: "No se pudo conectar al servidor.",
-        },
-      );
-      await refreshStatus();
-    } finally {
-      setSettingsBusy(false);
-    }
-  }
-  async function saveSettings() {
-    setSettingsBusy(true);
-    try {
-      await api()?.SaveServerConfig(serverConfig);
-      await api()?.SaveDiscLabelConfig(discLabelConfig);
-      await api()?.SaveEpsonConfig?.(epsonConfig); // Guardar discType y format
-      setSettingsOpen(false);
-      await refreshStatus();
-      setMessage("Configuración guardada.");
-    } catch (e) {
-      setConnection({ status: "Error", message: friendlyError(e) });
-    } finally {
-      setSettingsBusy(false);
-    }
-  }
   async function refreshStatus() {
     const value = await api()?.GetSystemStatus();
     if (value) setStatus(value);
   }
   async function search() {
     setLoading(true);
+    setSearchError("");
     try {
       const x = await api()?.SearchStudies(from, to);
       setStudies(x ?? []);
+      setSearched(true);
       setMessage(
         (x?.length ?? 0) === 0
           ? "No se encontraron estudios en ese rango."
@@ -198,7 +110,9 @@ function App({initialStatus, initialJobs,}: {
       );
     } catch (e) {
       setStudies([]);
+      setSearched(false);
       setMessage(String(e));
+      setSearchError(String(e).replace(/^Error:\s*/, ""));
     } finally {
       await refreshStatus();
       setLoading(false);
@@ -242,6 +156,7 @@ function App({initialStatus, initialJobs,}: {
       setMessage("Trabajo entregado a TD Bridge");
     } catch (e) {
       setMessage(`Error: ${String(e)}`);
+      setSearchError(`No se pudo grabar: ${String(e).replace(/^Error:\s*/, "")}`);
       const x = await api()?.ListJobs();
       setJobs(x ?? []);
     } finally {
@@ -272,508 +187,45 @@ function App({initialStatus, initialJobs,}: {
   }, []);
   return (
     <LicenseGuard>
-    <div className="shell appEnter">
-      <header>
-        <div className="brand">
-          <img className="brandLogo" src={medicareLogo} alt="Medicare Soft" />
-          <div>
-            <b>SYMPHONY MEDIA EXPORT</b>
-          </div>
-        </div>
-        {/* Acciones y estado de la licencia */}
-     
-          <button onClick={()=> setIsModalOpen(true)} className={`btn-header-action ${isValid ? 'license-active' : 'license-inactive'}`}>
-            <span>{isValid ? "✓ licencia activa" : "✕ licencia inactiva"}</span>
-          </button>
-          
-       
-        <button className="settings" onClick={openSettings}>
-          ⚙ Configuración
-        </button>
-        <LicenciaModal
-          isOpen={isModalOpen}
-          onClose={()=> setIsModalOpen(false)}>
-
-          </LicenciaModal>
-      </header>
+    <div className="shell appEnter withSide">
+      <Sidebar
+        view={view}
+        onNavigate={setView}
+        activeJobs={jobs.filter((j) => j.status !== "Completed" && j.status !== "Failed").length}
+        licenseValid={isValid}
+        onLicense={() => setIsModalOpen(true)}
+      />
+      <LicenciaModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)}></LicenciaModal>
       <main>
-        <section className="hero">
-          <div>
-            <p className="eyebrow">BÚSQUEDA DE ESTUDIOS · SYMPHONY PACS</p>
-            <h1>Estudios disponibles</h1>
-            <p>
-              Seleccione un rango para consultar estudios y preparar su
-              publicación.
-            </p>
-          </div>
-          <div className="filters">
-            <label>
-              Desde
-              <input
-                type="date"
-                value={from}
-                max={to}
-                onChange={(e) => setFrom(e.target.value)}
-              />
-            </label>
-            <label>
-              Hasta
-              <input
-                type="date"
-                value={to}
-                min={from}
-                onChange={(e) => setTo(e.target.value)}
-              />
-            </label>
-            {loading ? (
-              <button className="cancelSearch" onClick={cancelSearch}>
-                Cancelar búsqueda
-              </button>
-            ) : (
-              <button onClick={search} disabled={!isValid} title={!isValid ? "Licencia requerida para buscar estudios" : undefined}>Buscar estudios</button>
-            )}
-          </div>
-        </section>
-        <section className="systemStatus">
-          <span className={status.studyServer === "Conectado" ? "ok" : "bad"}>
-            Servidor: {status.studyServerAddress || "Sin configurar"} · ●{" "}
-            {status.studyServer}
-          </span>
-          <span className={status.tdBridgeConfigured ? "ok" : "bad"}>
-            TD Bridge: {status.tdBridge}
-          </span>
-          {!status.studyApiConfigured && (
-            <strong>
-              Servidor de estudios no configurado. Revise config.json.
-            </strong>
-          )}
-        </section>
-        <section className="panel studiesPanel">
-          <div className="panelTitle">
-            <h2>Estudios</h2>
-            <div className="studySearch">
-              <input
-                type="search"
-                value={studyQuery}
-                onChange={(event) => setStudyQuery(event.target.value)}
-                placeholder="Buscar paciente o estudio…"
-                aria-label="Buscar dentro de los estudios"
-              />
-              {studyQuery && (
-                <button
-                  onClick={() => setStudyQuery("")}
-                  aria-label="Limpiar búsqueda"
-                >
-                  Limpiar
-                </button>
-              )}
-              <span>
-                {filteredStudies.length}
-                {studyQuery ? ` de ${studies.length}` : ""} resultados
-              </span>
-            </div>
-          </div>
-          <div className="table">
-            <div className="tr th">
-              <span>Paciente</span>
-              <span>Fecha</span>
-              <span>Modalidad</span>
-              <span>Estudio</span>
-              <span>Imágenes</span>
-              <span></span>
-            </div>
-            {filteredStudies.map((s) => {
-              const studyJobs = jobs.filter(
-                (job) => job.studyInstanceUID === s.studyInstanceUID,
-              );
-              const isSubmitting = submittingStudies.has(s.studyInstanceUID);
-              const isRecorded = studyJobs.some(
-                (job) => job.status === "Completed",
-              );
-              const isProcessing = studyJobs.some(
-                (job) => job.status !== "Completed" && job.status !== "Failed",
-              );
-              const hasFailed =
-                !isRecorded &&
-                !isProcessing &&
-                studyJobs.some((job) => job.status === "Failed");
-              const wasPressed =
-                pressedStudies.has(s.studyInstanceUID) ||
-                isRecorded ||
-                isProcessing;
-
-              // ✅ Estado del botón adaptado para incluir "isSubmitting"
-              const buttonState = isSubmitting
-                ? "recordingPreparing"
-                : hasFailed
-                  ? "recordingFailed"
-                  : wasPressed
-                    ? "recordingSelected"
-                    : "";
-
-              return (
-                <div
-                  className="tr"
-                  key={`${s.studyInstanceUID}-${s.patientName}-${s.studyDate}-${s.studyDescription}`}
-                >
-                  <span className="patient">{s.patientName}</span>
-                  <span>
-                    {new Date(s.studyDate + "T00:00").toLocaleDateString("es")}
-                  </span>
-                  <span>
-                    <i>{s.modality}</i>
-                  </span>
-                  <span>{s.studyDescription}</span>
-                  <span>{s.instanceCount}</span>
-                  <span>
-                    <button
-                      className={`action ${buttonState}`}
-                      onClick={() => publish(s)}
-                      disabled={
-                        !isValid || // bloquear si no hay licencia
-                        !s.studyInstanceUID ||
-                        isSubmitting ||
-                        isProcessing ||
-                        isRecorded
-                      }
-                      title={
-                        !isValid // bloquear si no hay licencia
-                        ? "Requiere una licencia activa para grabar "
-                        : !s.studyInstanceUID
-                          ? "El servidor no proporcionó EST_UID"
-                          : undefined
-                      }
-                    >
-                      {isSubmitting ? (
-                        <>
-                          <span className="spinner"></span>
-                          <span>Preparando...</span>
-                        </>
-                      ) : hasFailed ? (
-                        <>
-                          <span className="btnIcon">✕</span>
-                          <span>Error</span>
-                        </>
-                      ) : wasPressed || isRecorded ? (
-                        <>
-                          <span className="btnIcon">✓</span>
-                          <span>Enviado</span>
-                        </>
-                      ) : (
-                        "Grabar CD"
-                      )}
-                    </button>
-                  </span>
-                </div>
-              );
-            })}
-          </div>
-        </section>
-        <section className="panel jobs">
-          <div className="panelTitle">
-            <h2>Historial de trabajos</h2>
-            <span className="statusline">● {message}</span>
-          </div>
-          {historyError && <p role="alert" style={{color: "#ff9292"}}>{historyError}</p>}
-          {jobs.length === 0 ? (
-            <div className="empty">
-              Los trabajos preparados aparecerán aquí.
-            </div>
-          ) : (
-            <div className="jobList">
-              {/* Cabecera fija de la tabla */}
-              <div className="job jobHeader">
-                <span>Paciente</span>
-                <span>Estudio</span>
-                <span>Job</span>
-                <span>Estado</span>
-              </div>
-
-              {/* Contenedor interno con scroll vertical */}
-              <div className="jobBody">
-                {jobs.map((j) => (
-                  <div className="job" key={j.id}>
-                    <span>{j.patientName}</span>
-                    <span>{j.studyDescription}</span>
-                    <code>{j.id}</code>
-                    <span>
-                      <b className={`jobBadge status-${j.status}`}>
-                        {label(j.status)}
-                      </b>
-                      {j.status === "Failed" && j.errorMessage && (
-                        <>
-                          <small className="friendlyError">
-                            {j.errorMessage}
-                          </small>
-                          <details>
-                            <summary>Ver detalle</summary>
-                            <small>
-                              {j.errorCode && (
-                                <>
-                                  Código: {j.errorCode}
-                                  <br />
-                                </>
-                              )}
-                              {j.technicalStatus && (
-                                <>
-                                  Estado TD Bridge: {j.technicalStatus}
-                                  <br />
-                                </>
-                              )}
-                              {j.detailStatus && (
-                                <>
-                                  Detalle: {j.detailStatus}
-                                  <br />
-                                </>
-                              )}
-                              Mensaje: {j.errorMessage}
-                            </small>
-                          </details>
-                        </>
-                      )}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-        </section>
+        {view === "settings" ? (
+          <SettingsView onBack={() => setView("studies")} onSaved={refreshStatus} />
+        ) : view === "studies" ? (
+          <StudiesView
+            from={from}
+            to={to}
+            setFrom={setFrom}
+            setTo={setTo}
+            studies={searched ? studies : null}
+            loading={loading}
+            error={searchError}
+            jobs={jobs}
+            submitting={submittingStudies}
+            canRecord={isValid}
+            serverOk={status.studyServer === "Conectado"}
+            tdBridgeOk={status.tdBridgeConfigured}
+            onSearch={search}
+            onCancel={cancelSearch}
+            onRecord={publish}
+            onOpenHistory={() => setView("history")}
+          />
+        ) : (
+          <HistoryView
+            jobs={jobs}
+            historyError={historyError}
+            onBack={() => setView("studies")}
+          />
+        )}
       </main>
-      {settingsOpen && (
-        <div
-          className="modalBackdrop"
-          role="presentation"
-          onMouseDown={(e) => {
-            if (e.target === e.currentTarget) setSettingsOpen(false);
-          }}
-        >
-          <section
-            className="settingsModal"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="settings-title"
-          >
-            <h2 id="settings-title">CONFIGURACIÓN</h2>
-            <div className="settingsGrid">
-              <section className="settingsSection">
-                <h3>Servidor de estudios</h3>
-                <label>
-                  Servidor / IP
-                  <input
-                    autoFocus
-                    value={serverConfig.host}
-                    onChange={(e) =>
-                      setServerConfig((v) => ({ ...v, host: e.target.value }))
-                    }
-                  />
-                </label>
-                <label>
-                  Puerto
-                  <input
-                    type="number"
-                    min="1"
-                    max="65535"
-                    value={serverConfig.port}
-                    onChange={(e) =>
-                      setServerConfig((v) => ({
-                        ...v,
-                        port: Number(e.target.value),
-                      }))
-                    }
-                  />
-                </label>
-                <label>
-                  Protocolo
-                  <select
-                    value={serverConfig.protocol}
-                    onChange={(e) =>
-                      setServerConfig((v) => ({
-                        ...v,
-                        protocol: e.target.value as "http" | "https",
-                      }))
-                    }
-                  >
-                    <option value="http">http</option>
-                    <option value="https">https</option>
-                  </select>
-                </label>
-                <label>
-                  Timeout
-                  <div className="inputSuffix">
-                    <input
-                      type="number"
-                      min="1"
-                      value={serverConfig.timeoutSeconds}
-                      onChange={(e) =>
-                        setServerConfig((v) => ({
-                          ...v,
-                          timeoutSeconds: Number(e.target.value),
-                        }))
-                      }
-                    />
-                    <span>segundos</span>
-                  </div>
-                </label>
-                <button
-                  className="testButton"
-                  disabled={settingsBusy}
-                  onClick={testConnection}
-                >
-                  {settingsBusy ? "Probando…" : "Probar conexión"}
-                </button>
-                <div
-                  className={`connectionState ${connection.status === "Conectado" ? "connected" : connection.status === "Error" ? "failed" : ""}`}
-                >
-                  Estado: ● {connection.status}
-                  {connection.message && <small>{connection.message}</small>}
-                </div>
-                <hr
-                  style={{ margin: "20px 0 16px 0", borderColor: "#e7edf1" }}
-                />
-                <hr className="settingsDivider" />
-                <h3>Parámetros del Grabador</h3>
-                <label>
-                  Superficie imprimible del disco
-                  <select value={epsonConfig.labelType} onChange={(e) => {
-                    const labelType = Number(e.target.value);
-                    setEpsonConfig((v) => ({
-                      ...v, labelType,
-                      printMode: labelType === 3 ? 1 : labelType === 0 && v.printMode === 2 ? 0 : v.printMode,
-                    }));
-                  }}>
-                    <option value={0}>Usar configuración del equipo</option>
-                    <option value={1}>Estándar CD/DVD</option>
-                    <option value={2}>Alta calidad CD/DVD</option>
-                    <option value={3}>Brillante / certificada Epson</option>
-                  </select>
-                </label>
-                <label>
-                  Velocidad de impresión
-                  <select value={epsonConfig.printMode}
-                    onChange={(e) => setEpsonConfig((v) => ({ ...v, printMode: Number(e.target.value) }))}>
-                    <option value={0} disabled={epsonConfig.labelType === 3}>Usar configuración del equipo</option>
-                    <option value={1}>Calidad</option>
-                    <option value={2} disabled={epsonConfig.labelType !== 1 && epsonConfig.labelType !== 2}>Rápida</option>
-                  </select>
-                </label>
-                <small className="labelHint">
-                  Para impresión rápida, seleccione la superficie que corresponde a sus discos.
-                  La superficie brillante requiere Calidad. La grabación usa la velocidad máxima
-                  disponible del equipo y del disco.
-                </small>
-
-                <label>
-                  Tipo de Disco
-                  <select
-                    value={epsonConfig.discType}
-                    onChange={(e) =>
-                      setEpsonConfig((v) => ({
-                        ...v,
-                        discType: e.target.value,
-                      }))
-                    }
-                  >
-                    <option value="DVD">DVD (Predeterminado)</option>
-                    <option value="CD">CD</option>
-                    <option value="BD">Blu-ray (BD)</option>
-                  </select>
-                </label>
-
-                <label>
-                  Formato de Archivos
-                  <select
-                    value={epsonConfig.format}
-                    onChange={(e) =>
-                      setEpsonConfig((v) => ({ ...v, format: e.target.value }))
-                    }
-                  >
-                    <option value="UDF102">UDF 1.02 (Recomendado DICOM)</option>
-                    <option value="UDF150">UDF 1.50</option>
-                    <option value="ISO9660">ISO 9660</option>
-                  </select>
-                </label>
-              </section>
-
-              <section className="settingsSection discLabelSettings">
-                <h3>Etiqueta del disco</h3>
-                <label>
-                  Nombre del hospital
-                  <input
-                    value={discLabelConfig.hospitalName}
-                    placeholder="Nombre del hospital"
-                    onChange={(event) =>
-                      setDiscLabelConfig((current) => ({
-                        ...current,
-                        hospitalName: event.target.value,
-                      }))
-                    }
-                  />
-                </label>
-                <label>
-                  Logo del hospital
-                  <div className="logoPicker">
-                    <input
-                      value={discLabelConfig.logoPath}
-                      placeholder="Identidad Symphony predeterminada"
-                      readOnly
-                    />
-                    <button
-                      className="testButton"
-                      onClick={selectDiscLabelLogo}
-                    >
-                      Seleccionar
-                    </button>
-                    {discLabelConfig.logoPath && (
-                      <button
-                        className="cancelButton"
-                        onClick={() =>
-                          setDiscLabelConfig((current) => ({
-                            ...current,
-                            logoPath: "",
-                          }))
-                        }
-                      >
-                        Quitar
-                      </button>
-                    )}
-                  </div>
-                </label>
-                <div className="labelPreview">
-                  {labelPreview ? (
-                    <img
-                      src={labelPreview}
-                      alt="Vista previa de la etiqueta del disco"
-                    />
-                  ) : (
-                    <span>Generando vista previa…</span>
-                  )}
-                </div>
-                {labelError && <p className="labelError">{labelError}</p>}
-                <small className="labelHint">
-                  Sin nombre ni logo personalizado se utilizará la identidad de
-                  Symphony.
-                </small>
-              </section>
-            </div>
-            <div className="modalActions">
-              <button
-                className="cancelButton"
-                disabled={settingsBusy}
-                onClick={() => setSettingsOpen(false)}
-              >
-                Cancelar
-              </button>
-              <button
-                className="saveButton"
-                disabled={settingsBusy}
-                onClick={saveSettings}
-              >
-                Guardar
-              </button>
-            </div>
-          </section>
-        </div>
-      )}
     </div>
     </LicenseGuard>
   );

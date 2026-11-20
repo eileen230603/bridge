@@ -23,3 +23,6 @@ runtime/
 
 /license-admin-private/
 /tools/license-admin/ui/wailsjs/
+
+# Carpetas basura que wails dev crea al interpretar mal go:embed con espacios
+apps/ap1-publisher/"*

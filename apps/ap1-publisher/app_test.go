@@ -53,7 +53,7 @@ func TestResolveAP1ConfigPathFindsConfigRelativeToExecutable(t *testing.T) {
 	if err := os.WriteFile(configPath, []byte("{}"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	executable := filepath.Join(appRoot, "build", "bin", "DICOM Disc Publisher.exe")
+	executable := filepath.Join(appRoot, "build", "bin", "Symphony Media Export.exe")
 
 	got, found := resolveAP1ConfigPath("", executable, filepath.Join(t.TempDir(), "unrelated-working-directory"))
 	if !found {
@@ -74,7 +74,7 @@ func TestResolveAP1ConfigPathPrefersExplicitPath(t *testing.T) {
 func TestNewAppUsesEmbeddedConfigWhenNoExternalFileExists(t *testing.T) {
 	t.Setenv("AP1_CONFIG", "")
 	workDir := t.TempDir()
-	executable := filepath.Join(workDir, "DICOM Disc Publisher.exe")
+	executable := filepath.Join(workDir, "Symphony Media Export.exe")
 	if path, found := resolveAP1ConfigPath("", executable, workDir); found || path != filepath.Join(workDir, "config.json") {
 		t.Fatalf("expected a save path for missing external config, got path=%q found=%v", path, found)
 	}
