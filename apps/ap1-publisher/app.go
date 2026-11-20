@@ -198,7 +198,7 @@ func resolveAP1ConfigPath(explicit, executable, workDir string) (string, bool) {
 }
 func (a *App) startup(ctx context.Context) {
 	a.ctx = ctx
-	a.logger.Info("AP1 started")
+	a.logger.Info("AP1 started", "version", Version, "commit", Commit)
 	cleanup := services.TempCleanupService{Root: a.cfg.TemporaryDirectory, MaxAge: time.Duration(a.cfg.CleanupAfterHours) * time.Hour, Enabled: a.cfg.CleanupEnabled, Logger: a.logger}
 	if e := cleanup.Scan(); e != nil {
 		a.logger.Error("Cleanup scan failed", "error", e)

@@ -27,6 +27,10 @@ type Props = {
 
 export function Sidebar({ view, onNavigate, activeJobs, licenseValid, onLicense }: Props) {
   const { theme, toggle } = useTheme();
+  const [version, setVersion] = React.useState("");
+  React.useEffect(() => {
+    (window as any).go?.main?.App?.GetAppInfo?.().then((i: { version: string }) => setVersion(i.version)).catch(() => {});
+  }, []);
   const item = (id: View, text: string, badge = 0) => (
     <button key={id} className={`sb-item ${view === id ? "on" : ""}`} onClick={() => onNavigate(id)} aria-current={view === id ? "page" : undefined}>
       <span className="sb-ico">{ICON[id]}</span>
@@ -61,6 +65,7 @@ export function Sidebar({ view, onNavigate, activeJobs, licenseValid, onLicense 
         <span className="sb-ico">{theme === "dark" ? ICON.sun : ICON.moon}</span>
         <span className="sb-text">Tema {theme === "dark" ? "oscuro" : "claro"}</span>
       </button>
+      {version && <div className="sb-version" title="Versión de la aplicación">v{version}</div>}
     </aside>
   );
 }

@@ -21,3 +21,4 @@
 .sb-license.ok{color:var(--text)}
 .sb-theme .sb-ico svg{transition:transform .35s ease}
 .sb-theme:hover .sb-ico svg{transform:rotate(20deg)}
+.sb-version{padding:8px 12px 0;font-size:12px;color:var(--muted);letter-spacing:.03em;white-space:nowrap}

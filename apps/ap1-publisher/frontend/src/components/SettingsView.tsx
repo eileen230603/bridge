@@ -6,7 +6,8 @@ type ServerConfig = { protocol: "http" | "https"; host: string; port: number; ti
 type EpsonConfig = { discType: string; format: string; printMode: number; labelType: number };
 type DiscLabelConfig = { hospitalName: string; logoPath: string };
 type Conn = { status: string; message: string };
-type SectionId = "server" | "burn" | "label";
+type SectionId = "server" | "burn" | "label" | "about";
+type AppInfo = { name: string; company: string; version: string; commit: string; buildDate: string; devMode: boolean };
 
 const api = () => (window as any).go?.main?.App;
 const errText = (e: unknown) => String((e as any)?.message ?? e).replace(/^Error:\s*/, "");
@@ -17,12 +18,14 @@ const I = (d: React.ReactNode) => (
 const ICONS: Record<SectionId, React.ReactNode> = {
   server: I(<><rect x="3" y="4" width="18" height="6" rx="2" /><rect x="3" y="14" width="18" height="6" rx="2" /><path d="M7 7h.01M7 17h.01" /></>),
   burn: I(<><circle cx="12" cy="12" r="9" /><circle cx="12" cy="12" r="2.5" /></>),
+  about: I(<><circle cx="12" cy="12" r="9" /><path d="M12 11v5M12 7.5v.01" /></>),
   label: I(<><rect x="4" y="4" width="16" height="16" rx="3" /><path d="M8 14l3-3 3 3 2-2 2 2" /><circle cx="9" cy="9" r="1" /></>),
 };
 const SECTIONS: { id: SectionId; title: string }[] = [
   { id: "server", title: "Servidor" },
   { id: "burn", title: "Grabado" },
   { id: "label", title: "Etiqueta" },
+  { id: "about", title: "Acerca de" },
 ];
 
 function Feedback({ f }: { f: { ok: boolean; text: string } | null }) {
@@ -38,8 +41,10 @@ export function SettingsView({ onBack, onSaved }: { onBack: () => void; onSaved:
   const [preview, setPreview] = React.useState("");
   const [labelError, setLabelError] = React.useState("");
   const [conn, setConn] = React.useState<Conn>({ status: "No probado", message: "" });
+  const [info, setInfo] = React.useState<AppInfo | null>(null);
+  React.useEffect(() => { api()?.GetAppInfo?.().then(setInfo).catch(() => {}); }, []);
   const [busy, setBusy] = React.useState<SectionId | "test" | null>(null);
-  const [fb, setFb] = React.useState<Record<SectionId, { ok: boolean; text: string } | null>>({ server: null, burn: null, label: null });
+  const [fb, setFb] = React.useState<Record<SectionId, { ok: boolean; text: string } | null>>({ server: null, burn: null, label: null, about: null });
 
   React.useEffect(() => {
     (async () => {
@@ -222,6 +227,17 @@ export function SettingsView({ onBack, onSaved }: { onBack: () => void; onSaved:
                 </div>
               </div>
               <SaveRow id="label" />
+            </section>
+          )}
+          {section === "about" && info && (
+            <section className="s-section">
+              <h3>Acerca de</h3>
+              <dl className="s-about">
+                <dt>Aplicación</dt><dd>{info.name}</dd>
+                <dt>Versión</dt><dd>{info.version}{info.devMode ? " (modo desarrollo)" : ""}</dd>
+                <dt>Compilación</dt><dd>{info.commit}{info.buildDate ? ` · ${info.buildDate}` : ""}</dd>
+                <dt>Desarrollado por</dt><dd>{info.company}</dd>
+              </dl>
             </section>
           )}
         </div>
