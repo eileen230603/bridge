@@ -1,0 +1,6 @@
+/* macOS: barra de título integrada. Los botones de la ventana quedan sobre el contenido,
+   y esta franja (--wails-draggable) permite arrastrar la ventana. */
+.titlebar-drag{display:none}
+html[data-platform="mac"] .titlebar-drag{display:block;position:fixed;top:0;left:0;right:0;height:34px;z-index:2000;--wails-draggable:drag}
+html[data-platform="mac"] .sidebar{padding-top:46px}
+html[data-platform="mac"] .shell.withSide>main{padding-top:44px}

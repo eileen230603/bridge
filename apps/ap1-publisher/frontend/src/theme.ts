@@ -16,7 +16,12 @@ const systemTheme = (): Theme =>
 
 export function applyTheme(t: Theme) {
   document.documentElement.dataset.theme = t;
+  // Windows: la barra de título nativa sigue al tema de la app, no solo al del sistema.
+  (window as any).go?.main?.App?.SetWindowTheme?.(t)?.catch?.(() => {});
 }
+
+// Plataforma: macOS usa barra de título integrada y necesita margen superior.
+document.documentElement.dataset.platform = /Mac/i.test(navigator.platform || navigator.userAgent) ? "mac" : "other";
 
 // Antes de renderizar: preferencia guardada o, si no hay, la del sistema.
 applyTheme(stored() ?? systemTheme());

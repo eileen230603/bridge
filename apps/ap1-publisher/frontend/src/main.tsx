@@ -14,6 +14,7 @@ import { StudiesView } from "./components/StudiesView";
 import { HistoryView } from "./components/HistoryView";
 import { SettingsView } from "./components/SettingsView";
 import { Sidebar } from "./components/Sidebar";
+import { TitleBarDrag } from "./components/TitleBarDrag";
 type Study = {
   studyInstanceUID: string;
   patientName: string;
@@ -188,6 +189,7 @@ function App({initialStatus, initialJobs,}: {
   return (
     <LicenseGuard>
     <div className="shell appEnter withSide">
+      <TitleBarDrag />
       <Sidebar
         view={view}
         onNavigate={setView}

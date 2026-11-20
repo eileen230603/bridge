@@ -1,10 +1,12 @@
 import logo from "../assets/logo.png";
 import companyLogo from "../assets/MEDICARESOFTPNG.png";
 import "./SplashScreen.css";
+import { TitleBarDrag } from "./TitleBarDrag";
 
 export function SplashScreen({ exiting = false }: { exiting?: boolean }) {
   return (
     <main className={`startupScreen${exiting ? " startupScreenExit" : ""}`} role="status" aria-live="polite">
+      <TitleBarDrag />
       <section className="startupCard">
         <img className="startupLogo" src={logo} alt="Symphony Media Export" />
         <h1>SYMPHONY</h1>
@@ -23,6 +25,7 @@ export function SplashScreen({ exiting = false }: { exiting?: boolean }) {
 export function StartupError({ detail }: { detail: string }) {
   return (
     <main className="startupScreen" role="alert">
+      <TitleBarDrag />
       <section className="startupCard startupError">
         <img className="startupLogo" src={logo} alt="Symphony Media Export" />
         <div className="startupErrorIcon" aria-hidden="true">!</div>

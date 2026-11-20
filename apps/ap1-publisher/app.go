@@ -11,6 +11,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"sync"
 	"time"
@@ -202,6 +203,19 @@ func (a *App) startup(ctx context.Context) {
 	cleanup := services.TempCleanupService{Root: a.cfg.TemporaryDirectory, MaxAge: time.Duration(a.cfg.CleanupAfterHours) * time.Hour, Enabled: a.cfg.CleanupEnabled, Logger: a.logger}
 	if e := cleanup.Scan(); e != nil {
 		a.logger.Error("Cleanup scan failed", "error", e)
+	}
+}
+
+// SetWindowTheme sincroniza la barra de título nativa de Windows con el tema de la app
+// ("light" o "dark"). En otras plataformas no hace nada.
+func (a *App) SetWindowTheme(theme string) {
+	if runtime.GOOS != "windows" || a.ctx == nil {
+		return
+	}
+	if theme == "light" {
+		wailsruntime.WindowSetLightTheme(a.ctx)
+	} else {
+		wailsruntime.WindowSetDarkTheme(a.ctx)
 	}
 }
 
