@@ -5,6 +5,15 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y
 
 ## [Sin liberar]
 
+### Cambiado
+- Configuración → Grabado: el tipo de disco (CD, DVD, Blu-ray) define los formatos válidos; el formato recomendado se
+  selecciona solo y "Cambiar" muestra únicamente los permitidos. Impresión de la etiqueta separada del disco.
+- Se validan las combinaciones disco/formato al guardar y al leer `config.json`; las configuraciones antiguas inválidas
+  (p. ej. Blu-ray con UDF 1.02) se migran al formato recomendado.
+
+### Pendiente
+- Confirmar con la documentación de TD Bridge el valor `FORMAT` para Blu-ray (hoy `UDF250`).
+
 ## [2.0.0] - 2026-11-20
 
 Primera versión de la suite integrada con la nueva interfaz.

@@ -116,7 +116,10 @@ func (c *EpsonConfig) SetDefaults() {
 		c.DiscType = "DVD"
 	}
 	if c.Format == "" {
-		c.Format = "UDF102"
+		c.Format = DefaultFormatFor(c.DiscType)
+		if c.Format == "" {
+			c.Format = "UDF102"
+		}
 	}
 }
 func Load(path string) (Config, error) {
@@ -140,6 +143,10 @@ func LoadBytes(b []byte, baseDir string) (Config, error) {
 
 	// Aplicar valores por defecto para DiscType y Format si están vacíos en el JSON
 	c.Epson.SetDefaults()
+	c.Epson.normalizeDisc() // migra combinaciones inválidas de versiones anteriores
+	if err := c.Epson.ValidateDisc(); err != nil {
+		return c, err
+	}
 	if err := c.Epson.ValidatePerformance(); err != nil {
 		return c, err
 	}

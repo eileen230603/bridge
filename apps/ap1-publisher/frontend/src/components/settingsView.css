@@ -28,3 +28,16 @@
 .s-about{display:grid;grid-template-columns:160px 1fr;gap:14px 16px;margin:0;font-size:15px}
 .s-about dt{color:var(--muted);font-weight:600;font-size:13px;align-self:center}
 .s-about dd{margin:0;color:var(--text)}
+.s-group{display:flex;flex-direction:column;gap:14px;padding:18px;border:1px solid var(--line);border-radius:16px;background:var(--inset)}
+.s-group h4{margin:0;font-size:13px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--muted)}
+.s-seg{display:inline-flex;align-self:flex-start;padding:4px;gap:4px;border-radius:14px;background:var(--glass2);border:1px solid var(--line);box-shadow:var(--edge)}
+.s-seg button{height:40px;min-width:92px;padding:0 18px;border:0;border-radius:10px;background:transparent;color:var(--muted);font:inherit;font-size:15px;font-weight:600;cursor:pointer;transition:background .15s,color .15s}
+.s-seg button:hover{color:var(--text)}
+.s-seg button.on{background:var(--primary);color:#fff;box-shadow:inset 0 1px 0 rgba(255,255,255,.3)}
+.s-format{display:flex;align-items:center;flex-wrap:wrap;gap:6px 12px;font-size:14px}
+.s-format-label{color:var(--muted);font-weight:600;font-size:13px}
+.s-format-value{color:var(--text);font-weight:600}
+.s-format-value em{font-style:normal;font-weight:500;color:var(--muted)}
+.s-format-select{width:auto!important;min-width:220px}
+.s-hint.warn{color:var(--warn)}
+.s-section .v-link{background:none;border:0;padding:0;color:var(--teal);cursor:pointer;font:inherit;font-size:13px;font-weight:600}

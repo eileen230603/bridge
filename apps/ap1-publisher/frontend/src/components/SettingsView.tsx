@@ -6,6 +6,7 @@ type ServerConfig = { protocol: "http" | "https"; host: string; port: number; ti
 type EpsonConfig = { discType: string; format: string; printMode: number; labelType: number };
 type DiscLabelConfig = { hospitalName: string; logoPath: string };
 type Conn = { status: string; message: string };
+type DiscProfile = { type: string; label: string; default: string; formats: { id: string; label: string }[]; note?: string };
 type SectionId = "server" | "burn" | "label" | "about";
 type AppInfo = { name: string; company: string; version: string; commit: string; buildDate: string; devMode: boolean };
 
@@ -41,6 +42,25 @@ export function SettingsView({ onBack, onSaved }: { onBack: () => void; onSaved:
   const [preview, setPreview] = React.useState("");
   const [labelError, setLabelError] = React.useState("");
   const [conn, setConn] = React.useState<Conn>({ status: "No probado", message: "" });
+  const [profiles, setProfiles] = React.useState<DiscProfile[]>([]);
+  const [advanced, setAdvanced] = React.useState(false);
+  React.useEffect(() => { api()?.GetDiscProfiles?.().then(setProfiles).catch(() => {}); }, []);
+  const profile = profiles.find((p) => p.type === epson.discType);
+  const formatLabel = (id: string) => profile?.formats.find((f) => f.id === id)?.label ?? id;
+  // Al cambiar de disco, el formato pasa al recomendado de ese disco: nunca queda una combinación inválida.
+  const pickDisc = (type: string) => {
+    const p = profiles.find((x) => x.type === type);
+    if (!p) return;
+    setEpson((v) => ({ ...v, discType: type, format: p.default }));
+    setAdvanced(false);
+  };
+  const pickSurface = (labelType: number) =>
+    setEpson((v) => ({ ...v, labelType, printMode: labelType === 3 ? 1 : v.printMode === 2 && labelType !== 1 && labelType !== 2 ? 0 : v.printMode }));
+  const speedOptions = [
+    ...(epson.labelType === 3 ? [] : [{ value: 0, label: "Según el equipo" }]),
+    { value: 1, label: "Calidad" },
+    ...(epson.labelType === 1 || epson.labelType === 2 ? [{ value: 2, label: "Rápida" }] : []),
+  ];
   const [info, setInfo] = React.useState<AppInfo | null>(null);
   React.useEffect(() => { api()?.GetAppInfo?.().then(setInfo).catch(() => {}); }, []);
   const [busy, setBusy] = React.useState<SectionId | "test" | null>(null);
@@ -162,45 +182,58 @@ export function SettingsView({ onBack, onSaved }: { onBack: () => void; onSaved:
 
           {section === "burn" && (
             <section className="s-section">
-              <h3>Parámetros de grabado</h3>
-              <div className="s-grid">
-                <label>Tipo de disco
-                  <select value={epson.discType} onChange={(e) => setEpson((v) => ({ ...v, discType: e.target.value }))}>
-                    <option value="DVD">DVD</option>
-                    <option value="CD">CD</option>
-                    <option value="BD">Blu-ray</option>
-                  </select>
-                </label>
-                <label>Formato de archivos
-                  <select value={epson.format} onChange={(e) => setEpson((v) => ({ ...v, format: e.target.value }))}>
-                    <option value="UDF102">UDF 1.02 (recomendado DICOM)</option>
-                    <option value="UDF150">UDF 1.50</option>
-                    <option value="ISO9660">ISO 9660</option>
-                  </select>
-                </label>
-                <label>Superficie imprimible
-                  <select
-                    value={epson.labelType}
-                    onChange={(e) => {
-                      const labelType = Number(e.target.value);
-                      setEpson((v) => ({ ...v, labelType, printMode: labelType === 3 ? 1 : labelType === 0 && v.printMode === 2 ? 0 : v.printMode }));
-                    }}
-                  >
-                    <option value={0}>Según el equipo</option>
-                    <option value={1}>Estándar CD/DVD</option>
-                    <option value={2}>Alta calidad CD/DVD</option>
-                    <option value={3}>Brillante (Epson)</option>
-                  </select>
-                </label>
-                <label>Velocidad de impresión
-                  <select value={epson.printMode} onChange={(e) => setEpson((v) => ({ ...v, printMode: Number(e.target.value) }))}>
-                    <option value={0} disabled={epson.labelType === 3}>Según el equipo</option>
-                    <option value={1}>Calidad</option>
-                    <option value={2} disabled={epson.labelType !== 1 && epson.labelType !== 2}>Rápida</option>
-                  </select>
-                </label>
+              <h3>Grabado</h3>
+
+              <div className="s-group">
+                <h4>Disco</h4>
+                <div className="s-seg" role="radiogroup" aria-label="Tipo de disco">
+                  {profiles.map((p) => (
+                    <button key={p.type} role="radio" aria-checked={epson.discType === p.type} className={epson.discType === p.type ? "on" : ""} onClick={() => pickDisc(p.type)}>
+                      {p.label}
+                    </button>
+                  ))}
+                </div>
+                {profile && (
+                  <div className="s-format">
+                    <span className="s-format-label">Formato</span>
+                    <span className="s-format-value">
+                      {formatLabel(epson.format)}
+                      {epson.format === profile.default && <em> · recomendado</em>}
+                    </span>
+                    {profile.formats.length > 1 && (
+                      <button className="v-link" onClick={() => setAdvanced((v) => !v)}>{advanced ? "Ocultar" : "Cambiar"}</button>
+                    )}
+                    {advanced && profile.formats.length > 1 && (
+                      <select className="s-format-select" value={epson.format} onChange={(e) => setEpson((v) => ({ ...v, format: e.target.value }))} aria-label="Formato de archivos">
+                        {profile.formats.map((f) => (
+                          <option key={f.id} value={f.id}>{f.label}{f.id === profile.default ? " (recomendado)" : ""}</option>
+                        ))}
+                      </select>
+                    )}
+                  </div>
+                )}
+                {profile?.note && <p className="s-hint warn">{profile.note}</p>}
               </div>
-              <p className="s-hint">La impresión rápida requiere superficie estándar o de alta calidad. La superficie brillante usa siempre Calidad.</p>
+
+              <div className="s-group">
+                <h4>Impresión de la etiqueta</h4>
+                <div className="s-grid">
+                  <label>Superficie imprimible
+                    <select value={epson.labelType} onChange={(e) => pickSurface(Number(e.target.value))}>
+                      <option value={0}>Según el equipo</option>
+                      <option value={1}>Estándar CD/DVD</option>
+                      <option value={2}>Alta calidad CD/DVD</option>
+                      <option value={3}>Brillante (Epson)</option>
+                    </select>
+                  </label>
+                  <label>Velocidad de impresión
+                    <select value={epson.printMode} onChange={(e) => setEpson((v) => ({ ...v, printMode: Number(e.target.value) }))}>
+                      {speedOptions.map((o) => (<option key={o.value} value={o.value}>{o.label}</option>))}
+                    </select>
+                  </label>
+                </div>
+                <p className="s-hint">{epson.labelType === 3 ? "La superficie brillante imprime siempre en calidad." : epson.labelType === 0 ? "Con «Según el equipo» no se puede forzar la impresión rápida." : "La impresión rápida está disponible con esta superficie."}</p>
+              </div>
               <SaveRow id="burn" />
             </section>
           )}

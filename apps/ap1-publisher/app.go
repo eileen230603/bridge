@@ -674,6 +674,10 @@ func (a *App) ListJobs() []models.DiscJob {
 	}
 	return append([]models.DiscJob(nil), a.jobs...)
 }
+
+// GetDiscProfiles entrega a la interfaz qué formatos son válidos para cada tipo de disco.
+func (a *App) GetDiscProfiles() []config.DiscProfile { return config.DiscProfiles() }
+
 func (a *App) GetEpsonConfig() config.EpsonConfig {
 	a.mu.RLock()
 	defer a.mu.RUnlock()
@@ -686,6 +690,9 @@ func (a *App) SaveEpsonConfig(epson config.EpsonConfig) error {
 
 	// 1. Sanitizar o aplicar valores por defecto si vienen vacíos
 	epson.SetDefaults()
+	if err := epson.ValidateDisc(); err != nil {
+		return err
+	}
 	if err := epson.ValidatePerformance(); err != nil {
 		return err
 	}
