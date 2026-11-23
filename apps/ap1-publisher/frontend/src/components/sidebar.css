@@ -1,15 +1,17 @@
-.sidebar{width:264px;flex:none;display:flex;flex-direction:column;padding:22px 14px 14px;background:var(--glass-strong);border-right:1px solid var(--line);box-shadow:var(--edge);backdrop-filter:var(--blur);-webkit-backdrop-filter:var(--blur);overflow:hidden}
-.sb-brand{display:flex;align-items:center;gap:12px;padding:0 6px 22px}
-.sb-brand .brandLogo{width:46px;height:46px;flex:none;object-fit:contain;filter:drop-shadow(1px 0 0 #fff) drop-shadow(-1px 0 0 #fff) drop-shadow(0 1px 0 #fff) drop-shadow(0 -1px 0 #fff)}
+.sidebar{width:264px;flex:none;display:flex;flex-direction:column;gap:14px;padding:0;margin:14px 0 14px 14px;height:calc(100vh - 28px);overflow:hidden}
+.sb-brand{display:flex;align-items:center;gap:14px;padding:12px 16px 12px 12px;border-radius:999px;background:var(--glass-strong);border:1px solid var(--line);box-shadow:var(--edge),var(--panel-shadow);backdrop-filter:var(--blur);-webkit-backdrop-filter:var(--blur)}
+.sb-ava{width:56px;height:56px;border-radius:50%;background:var(--glass2);display:grid;place-items:center;flex:none}
+.sb-menu{flex:1;min-height:0;display:flex;flex-direction:column;padding:16px 12px 14px;border-radius:32px;background:var(--glass-strong);border:1px solid var(--line);box-shadow:var(--edge),var(--panel-shadow);backdrop-filter:var(--blur);-webkit-backdrop-filter:var(--blur)}
+.sb-brand .brandLogo{width:42px;height:42px;flex:none;object-fit:contain;filter:drop-shadow(1px 0 0 #fff) drop-shadow(-1px 0 0 #fff) drop-shadow(0 1px 0 #fff) drop-shadow(0 -1px 0 #fff)}
 .sb-name{display:flex;flex-direction:column;line-height:1.15;white-space:nowrap}
 .sb-name b{font-size:17px;font-weight:700;letter-spacing:.06em;color:var(--text)}
 .sb-name span{font-size:11px;letter-spacing:.16em;color:var(--muted)}
 .sb-label{padding:6px 12px 10px;font-size:12px;color:var(--muted);letter-spacing:.04em;white-space:nowrap}
 .sb-nav{display:flex;flex-direction:column;gap:4px}
-.sb-item{position:relative;display:flex;align-items:center;gap:14px;height:46px;padding:0 12px;border:0;border-radius:12px;background:transparent;color:var(--muted);font:inherit;font-size:15px;font-weight:500;cursor:pointer;text-align:left;white-space:nowrap;width:100%;transition:background .15s,color .15s}
+.sb-item{position:relative;display:flex;align-items:center;gap:14px;height:48px;padding:0 14px;border:0;border-radius:999px;background:transparent;color:var(--muted);font:inherit;font-size:15px;font-weight:500;cursor:pointer;text-align:left;white-space:nowrap;width:100%;transition:background .15s,color .15s}
 .sb-item:hover{background:var(--hover);color:var(--text)}
-.sb-item.on{color:var(--text);font-weight:600;background:var(--glass2);box-shadow:var(--edge)}
-.sb-item.on::before{content:"";position:absolute;left:-14px;top:9px;bottom:9px;width:4px;border-radius:0 4px 4px 0;background:var(--accent);box-shadow:0 0 14px 2px var(--accent)}
+.sb-item.on{color:var(--text);font-weight:600;background:var(--glass2);background-image:var(--sheen);border:1px solid var(--line);box-shadow:var(--edge)}
+.sb-item.on::before{content:none}
 .sb-ico{position:relative;width:22px;height:22px;flex:none;display:grid;place-items:center}
 .sb-item.on .sb-ico{color:var(--text)}
 .sb-badge{margin-left:auto;min-width:22px;height:22px;padding:0 7px;border-radius:11px;background:var(--accent);color:#fff;font-size:12px;font-weight:700;display:grid;place-items:center}
@@ -22,3 +24,10 @@
 .sb-theme .sb-ico svg{transition:transform .35s ease}
 .sb-theme:hover .sb-ico svg{transform:rotate(20deg)}
 .sb-version{padding:8px 12px 0;font-size:12px;color:var(--muted);letter-spacing:.03em;white-space:nowrap}
+
+.sb-tog{margin-left:auto;width:46px;height:26px;border-radius:13px;background:var(--glass2);border:1px solid var(--line);position:relative;flex:none}
+.sb-tog::after{content:"";position:absolute;top:3px;right:3px;width:18px;height:18px;border-radius:50%;background:var(--text);transition:transform .2s}
+:root[data-theme="light"] .sb-tog{background:var(--primary);border-color:rgba(255,255,255,.5)}
+:root[data-theme="light"] .sb-tog::after{transform:translateX(-20px);background:#fff}
+:root[data-theme="light"] .sb-brand .brandLogo{filter:none}
+.sb-item:hover{background-image:var(--sheen)}

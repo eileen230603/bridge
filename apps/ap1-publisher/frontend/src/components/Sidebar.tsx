@@ -43,10 +43,11 @@ export function Sidebar({ view, onNavigate, activeJobs, licenseValid, onLicense 
   return (
     <aside className="sidebar">
       <div className="sb-brand">
-        <img className="brandLogo" src={logo} alt="Symphony Media Export" />
+        <span className="sb-ava"><img className="brandLogo" src={logo} alt="Symphony Media Export" /></span>
         <div className="sb-name"><b>SYMPHONY</b><span>MEDIA EXPORT</span></div>
       </div>
 
+      <div className="sb-menu">
       <div className="sb-label">Menú</div>
       <nav className="sb-nav">
         {item("studies", "Estudios")}
@@ -64,8 +65,10 @@ export function Sidebar({ view, onNavigate, activeJobs, licenseValid, onLicense 
       <button className="sb-item sb-theme" onClick={toggle} aria-label={`Cambiar a tema ${next}`} title={`Cambiar a tema ${next}`}>
         <span className="sb-ico">{theme === "dark" ? ICON.sun : ICON.moon}</span>
         <span className="sb-text">Tema {theme === "dark" ? "oscuro" : "claro"}</span>
+        <i className="sb-tog" />
       </button>
       {version && <div className="sb-version" title="Versión de la aplicación">v{version}</div>}
+      </div>
     </aside>
   );
 }
