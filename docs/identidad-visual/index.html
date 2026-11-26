@@ -1,0 +1,498 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Symphony Glass — Tablero de identidad visual</title>
+
+<!-- Tokens: fuente única. Se inyectan como CSS y se muestran en el artboard "Tokens CSS". -->
+<script type="text/plain" id="tokens">
+.th-dark{
+  --bg:#1c1c1e; --glass:rgba(255,255,255,.065); --glass-strong:rgba(70,70,74,.46); --glass2:rgba(255,255,255,.085);
+  --line:rgba(255,255,255,.14); --hover:rgba(255,255,255,.07); --inset:rgba(0,0,0,.22);
+  --text:#f4f4f5; --muted:#a6a6ac; --dot-off:#5b5b61;
+  --accent:#3b82ff; --primary:#2f6df0; --primary-d:#2457cf; --teal:#8fb6ff; --focus:rgba(86,140,255,.32);
+  --ok:#3ddc97; --bad:#ff6b6b; --warn:#ffb84d; --bad-text:#ff8a8a;
+  --edge:inset 0 1px 0 rgba(255,255,255,.18),inset 0 0 0 1px rgba(255,255,255,.04);
+  --panel-shadow:0 28px 70px rgba(0,0,0,.45);
+  --blur:blur(30px) saturate(150%);
+  --orb1:#6b6b70; --orb1-op:.22; --orb2:#3d3d42; --orb2-op:.35;
+  --arc:rgba(255,255,255,.22); --arc-fill:radial-gradient(circle at 30% 30%,rgba(255,255,255,.06),rgba(0,0,0,.28) 70%);
+  --sheen:linear-gradient(115deg,rgba(255,255,255,0) 30%,rgba(255,255,255,.10) 50%,rgba(255,255,255,0) 70%);
+  --overlay:rgba(10,10,12,.55);
+  --p-blue-bg:rgba(86,140,255,.20); --p-blue:#a9c6ff;
+  --p-violet-bg:rgba(160,150,255,.18); --p-violet:#c4bdff;
+  --p-green-bg:rgba(61,220,132,.15); --p-green:#5fe39a;
+  --p-amber-bg:rgba(255,184,77,.16); --p-amber:#ffc870;
+  --p-slate-bg:rgba(150,150,160,.18); --p-slate:#c2c2c9;
+  --p-bad-bg:rgba(255,92,92,.16); --p-bad:#ff8a8a;
+  color-scheme:dark;
+}
+.th-light{
+  --bg:#e4e4e8; --glass:rgba(255,255,255,.5); --glass-strong:rgba(255,255,255,.7); --glass2:rgba(255,255,255,.62);
+  --line:rgba(30,30,40,.13); --hover:rgba(30,30,40,.06); --inset:rgba(30,30,40,.06);
+  --text:#1b1b1f; --muted:#5f5f68; --dot-off:#a9a9b1;
+  --accent:#2f6df0; --primary:#2f6df0; --primary-d:#2457cf; --teal:#2457cf; --focus:rgba(47,109,240,.25);
+  --ok:#12804f; --bad:#c62828; --warn:#a35a00; --bad-text:#b02020;
+  --edge:inset 0 1px 0 rgba(255,255,255,.95),inset 0 0 0 1px rgba(255,255,255,.35);
+  --panel-shadow:0 22px 55px rgba(30,30,50,.16);
+  --blur:blur(30px) saturate(150%);
+  --orb1:#b5b5bd; --orb1-op:.4; --orb2:#c9c9d0; --orb2-op:.5;
+  --arc:rgba(30,30,40,.18); --arc-fill:radial-gradient(circle at 30% 30%,rgba(255,255,255,.5),rgba(30,30,40,.06) 70%);
+  --sheen:linear-gradient(115deg,rgba(255,255,255,0) 30%,rgba(255,255,255,.55) 50%,rgba(255,255,255,0) 70%);
+  --overlay:rgba(225,225,232,.55);
+  --p-blue-bg:rgba(47,109,240,.13); --p-blue:#2457cf;
+  --p-violet-bg:rgba(80,100,220,.13); --p-violet:#3d4fc4;
+  --p-green-bg:rgba(18,128,79,.14); --p-green:#0f6b42;
+  --p-amber-bg:rgba(255,160,0,.20); --p-amber:#8a5200;
+  --p-slate-bg:rgba(60,60,80,.12); --p-slate:#44444f;
+  --p-bad-bg:rgba(198,40,40,.12); --p-bad:#b02020;
+  color-scheme:light;
+}
+</script>
+
+<style>
+:root{
+  /* Marca (logo Symphony) y espaciado: no cambian con el tema */
+  --brand-navy:#0f4c6b; --brand-teal:#1f9e9a; --brand-red:#c8432f;
+  --r-sm:12px; --r-md:20px; --r-lg:24px; --r-xl:32px; --r-full:999px;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;overflow:hidden;background:#0d0d0f;font-family:ui-rounded,"SF Pro Rounded",-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Inter,sans-serif;-webkit-font-smoothing:antialiased}
+button,input,select{font:inherit}
+
+/* ---------- Motor del tablero ---------- */
+#vp{position:fixed;inset:0;cursor:grab;touch-action:none;background-image:radial-gradient(rgba(255,255,255,.13) 1px,transparent 1.2px);background-size:24px 24px;user-select:none}
+#vp.drag{cursor:grabbing}
+#world{position:absolute;left:0;top:0;transform-origin:0 0;will-change:transform}
+.ab-wrap{position:absolute}
+.ab-title{position:absolute;left:2px;bottom:100%;margin-bottom:10px;white-space:nowrap;color:#9a9aa3;font-size:15px;font-weight:600;letter-spacing:.01em}
+.ab-title small{font-weight:500;color:#64646c;margin-left:10px}
+.ab{position:absolute;inset:0;overflow:hidden;isolation:isolate;background:var(--bg);color:var(--text);border-radius:20px;box-shadow:0 0 0 1px rgba(255,255,255,.07),0 40px 90px rgba(0,0,0,.5)}
+
+/* ===== Componentes de FONDO (independientes; fieles al original) =====
+   .bgc            base: color --bg, recorta y aísla las capas
+   .bgc-app        fondo de la app: 2 arcos circulares con borde fino (.shell::before/::after)
+   .bgc-splash     fondo de inicio: 2 orbes grises desenfocados (.startupScreen::before/::after)
+   .bgc-flat       solo color de fondo, sin decoración
+   Tamaños en % del contenedor: escalan a cualquier pantalla (referencia 1440×900). */
+.bgc{position:relative;overflow:hidden;isolation:isolate;background:var(--bg)}
+.bgc::before,.bgc::after{content:"";position:absolute;border-radius:50%;z-index:-1;pointer-events:none}
+.bgc-app::before{width:68%;aspect-ratio:1;left:-29%;top:-33%;background:var(--arc-fill);border:1.5px solid var(--arc)}
+.bgc-app::after{width:76%;aspect-ratio:1;right:-36%;bottom:-71%;background:var(--arc-fill);border:1.5px solid var(--arc)}
+.bgc-splash::before{width:39%;aspect-ratio:1;left:-8%;top:-16%;background:var(--orb1);opacity:var(--orb1-op);filter:blur(90px)}
+.bgc-splash::after{width:35%;aspect-ratio:1;right:-7%;bottom:-18%;background:var(--orb2);opacity:var(--orb2-op);filter:blur(90px)}
+.bgc-flat::before,.bgc-flat::after{display:none}
+/* El fondo es una CAPA independiente detrás del contenido de cada artboard */
+.bg-piece{position:absolute;inset:0;z-index:0}
+.ab-content{position:absolute;inset:0;z-index:1}
+#world.nobg .bg-piece{display:none}
+#world.nobg .ab{background:transparent}
+
+#index{position:fixed;left:16px;top:16px;bottom:16px;width:236px;z-index:50;display:flex;flex-direction:column;border-radius:22px;background:rgba(28,28,31,.78);border:1px solid rgba(255,255,255,.1);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);color:#e8e8ec;box-shadow:0 20px 60px rgba(0,0,0,.5)}
+#index header{padding:18px 18px 12px}
+#index header b{display:block;font-size:15px;letter-spacing:.01em}
+#index header span{display:block;margin-top:3px;font-size:12px;color:#8e8e96;line-height:1.4}
+#index nav{flex:1;overflow:auto;padding:4px 10px 12px}
+#index h6{margin:12px 10px 6px;font-size:10.5px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:#6d6d75}
+#index a{display:block;padding:8px 10px;border-radius:10px;color:#c9c9d0;font-size:13.5px;text-decoration:none;cursor:pointer}
+#index a:hover{background:rgba(255,255,255,.07);color:#fff}
+#index a.on{background:rgba(59,130,255,.22);color:#fff}
+#hint{padding:12px 18px 16px;border-top:1px solid rgba(255,255,255,.08);font-size:11.5px;line-height:1.55;color:#85858d}
+#hint kbd{font:inherit;font-weight:700;color:#bdbdc5}
+#zoom{position:fixed;left:50%;bottom:18px;transform:translateX(calc(-50% + 126px));z-index:50;display:flex;align-items:center;gap:2px;padding:5px;border-radius:999px;background:rgba(28,28,31,.82);border:1px solid rgba(255,255,255,.1);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);box-shadow:0 14px 40px rgba(0,0,0,.45)}
+#zoom button{height:34px;min-width:34px;padding:0 12px;border:0;border-radius:999px;background:transparent;color:#d6d6dc;cursor:pointer;font-size:13px;font-weight:600}
+#zoom button:hover{background:rgba(255,255,255,.1)}
+#zoom #zl{min-width:58px;text-align:center;color:#fff}
+#toast{position:fixed;right:20px;bottom:20px;z-index:60;padding:10px 16px;border-radius:12px;background:#f4f4f5;color:#1b1b1f;font-size:13px;font-weight:600;opacity:0;transform:translateY(8px);transition:.2s;pointer-events:none}
+#toast.on{opacity:1;transform:none}
+[data-copy]{cursor:copy}
+
+/* ---------- Sistema (réplica del CSS de la app) ---------- */
+.ab h1,.ab h2,.ab h3,.ab h4,.ab p{margin:0}
+.pad{padding:56px}
+.eyebrow{font-size:11px;font-weight:700;letter-spacing:.3em;text-transform:uppercase;color:var(--teal)}
+.t-display{font-size:30px;font-weight:700;letter-spacing:-.01em;line-height:1.15}
+.t-page{font-size:24px;font-weight:700;letter-spacing:-.01em}
+.t-head{font-size:20px;font-weight:700;letter-spacing:-.01em}
+.t-lg{font-size:15px;font-weight:500}
+.t-body{font-size:14px}
+.t-cap{font-size:13px;font-weight:500;color:var(--muted)}
+.t-label{font-size:12px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--muted)}
+.muted{color:var(--muted)}
+.mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+.glass{background:var(--glass);border:1px solid var(--line);box-shadow:var(--edge),var(--panel-shadow);backdrop-filter:var(--blur);-webkit-backdrop-filter:var(--blur)}
+.glass-strong{background:var(--glass-strong);border:1px solid var(--line);box-shadow:var(--edge),var(--panel-shadow);backdrop-filter:var(--blur);-webkit-backdrop-filter:var(--blur)}
+.glass2{background:var(--glass2);border:1px solid var(--line);box-shadow:var(--edge);backdrop-filter:var(--blur);-webkit-backdrop-filter:var(--blur)}
+.v-btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:48px;padding:0 24px;border-radius:999px;border:1px solid transparent;font-weight:600;font-size:15px;cursor:pointer;color:var(--text);transition:transform .12s,background .15s}
+.v-btn:active{transform:scale(.97)}
+.v-btn.dis{opacity:.5;cursor:not-allowed}
+.v-btn-primary{background:linear-gradient(180deg,color-mix(in srgb,var(--primary) 82%,#fff),var(--primary));color:#fff;border-color:rgba(255,255,255,.22);box-shadow:inset 0 1px 0 rgba(255,255,255,.3),0 8px 22px color-mix(in srgb,var(--primary) 40%,transparent)}
+.v-btn-primary:hover:not(.dis){background:var(--primary-d)}
+.v-btn-ghost{background:var(--glass2);border-color:var(--line);box-shadow:var(--edge)}
+.v-btn-ghost:hover{background:var(--hover)}
+.v-btn-danger{background:color-mix(in srgb,var(--bad) 14%,transparent);border-color:color-mix(in srgb,var(--bad) 30%,transparent);color:var(--bad-text)}
+.v-pill{display:inline-block;padding:4px 14px;border-radius:999px;font-size:12.5px;font-weight:600}
+.tone-blue{background:var(--p-blue-bg);color:var(--p-blue)}.tone-violet{background:var(--p-violet-bg);color:var(--p-violet)}
+.tone-green{background:var(--p-green-bg);color:var(--p-green)}.tone-amber{background:var(--p-amber-bg);color:var(--p-amber)}
+.tone-slate{background:var(--p-slate-bg);color:var(--p-slate)}.tone-bad{background:var(--p-bad-bg);color:var(--p-bad)}
+.v-field{display:flex;align-items:center;gap:10px;height:48px;padding:0 20px;border-radius:999px;color:var(--muted);font-size:15px;background:var(--glass2);border:1px solid var(--line);box-shadow:var(--edge)}
+.v-field.focus{border-color:var(--teal);box-shadow:0 0 0 3px var(--focus)}
+.v-field input{flex:1;border:0;outline:0;background:transparent;color:var(--text);min-width:0;height:100%;font-size:15px}
+.v-field input::placeholder{color:var(--muted)}
+.v-icon{width:38px;height:38px;border-radius:50%;display:inline-grid;place-items:center;color:var(--teal);background:var(--glass2);border:1px solid var(--line);box-shadow:var(--edge)}
+.v-icon.hov{background:var(--primary);border-color:rgba(255,255,255,.25);color:#fff}
+.v-rec-busy{color:var(--warn);background:color-mix(in srgb,var(--warn) 14%,transparent);border-color:color-mix(in srgb,var(--warn) 28%,transparent)}
+.v-rec-done{color:var(--ok);background:color-mix(in srgb,var(--ok) 14%,transparent);border-color:color-mix(in srgb,var(--ok) 28%,transparent)}
+.v-rec-failed{color:var(--bad);background:color-mix(in srgb,var(--bad) 14%,transparent);border-color:color-mix(in srgb,var(--bad) 28%,transparent)}
+.v-alert{background:color-mix(in srgb,var(--bad) 12%,transparent);color:var(--bad-text);border:1px solid color-mix(in srgb,var(--bad) 30%,transparent);border-radius:20px;padding:12px 16px;font-size:14px;display:flex;gap:10px;align-items:flex-start}
+.v-ok{background:color-mix(in srgb,var(--ok) 12%,transparent);color:var(--p-green);border:1px solid color-mix(in srgb,var(--ok) 30%,transparent);border-radius:20px;padding:12px 16px;font-size:14px;display:flex;gap:10px}
+.seg{display:inline-flex;padding:4px;gap:4px;border-radius:999px;background:var(--glass2);border:1px solid var(--line);box-shadow:var(--edge)}
+.seg span{height:40px;min-width:92px;padding:0 20px;border-radius:999px;display:grid;place-items:center;color:var(--muted);font-size:15px;font-weight:600}
+.seg span.on{background:var(--primary);color:#fff;box-shadow:inset 0 1px 0 rgba(255,255,255,.3)}
+.tog{width:46px;height:26px;border-radius:13px;background:var(--glass2);border:1px solid var(--line);position:relative;display:inline-block}
+.tog::after{content:"";position:absolute;top:3px;left:3px;width:18px;height:18px;border-radius:50%;background:var(--muted)}
+.tog.on{background:var(--primary);border-color:rgba(255,255,255,.4)}.tog.on::after{left:auto;right:3px;background:#fff}
+.dot{width:9px;height:9px;border-radius:50%;background:var(--dot-off);display:inline-block}
+.dot.ok{background:var(--ok);box-shadow:0 0 8px var(--ok)}.dot.bad{background:var(--bad)}
+.nav-i{display:flex;align-items:center;gap:14px;height:48px;padding:0 14px;border-radius:999px;color:var(--muted);font-size:15px;font-weight:500;white-space:nowrap;border:1px solid transparent}
+.nav-i.on{color:var(--text);font-weight:600;background:var(--glass2);background-image:var(--sheen);border-color:var(--line);box-shadow:var(--edge)}
+.nav-i .bdg{margin-left:auto;min-width:22px;height:22px;padding:0 7px;border-radius:11px;background:var(--accent);color:#fff;font-size:12px;font-weight:700;display:grid;place-items:center}
+.brand{display:flex;align-items:center;gap:14px;padding:12px 16px 12px 12px;border-radius:999px}
+.brand .ava{width:56px;height:56px;border-radius:50%;background:var(--glass2);display:grid;place-items:center;flex:none}
+.brand img{width:42px;height:42px;object-fit:contain}
+.th-dark .brand img,.th-dark .logo-halo{filter:drop-shadow(1px 0 0 #fff) drop-shadow(-1px 0 0 #fff) drop-shadow(0 1px 0 #fff) drop-shadow(0 -1px 0 #fff)}
+.brand b{display:block;font-size:17px;letter-spacing:.06em}.brand span{display:block;font-size:11px;letter-spacing:.16em;color:var(--muted)}
+table.v-table{width:100%;border-collapse:collapse;font-size:14px}
+.v-table thead th{text-align:left;font-size:12px;letter-spacing:.07em;text-transform:uppercase;font-weight:600;color:var(--muted);padding:16px 24px;background:var(--glass-strong);border-bottom:1px solid var(--line)}
+.v-table td{padding:13px 24px;border-bottom:1px solid var(--line);vertical-align:middle}
+.v-table tbody tr:last-child td{border-bottom:0}
+.v-table tbody tr.hl{background:var(--glass2);background-image:var(--sheen)}
+.v-table .strong{font-weight:600}
+.row{display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+.col{display:flex;flex-direction:column}
+svg.i{width:1em;height:1em;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex:none}
+
+/* utilidades de artboard */
+.sw{display:flex;align-items:center;gap:12px;padding:10px;border-radius:16px;background:var(--glass);border:1px solid var(--line)}
+.sw i{width:42px;height:42px;border-radius:12px;border:1px solid var(--line);flex:none;display:block}
+.sw b{display:block;font-size:13.5px;font-weight:600}.sw small{display:block;font-size:11.5px;color:var(--muted);margin-top:1px}
+.grid{display:grid;gap:12px}
+.sec-h{margin:0 0 12px;font-size:12px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+.card-note{padding:22px 24px;border-radius:var(--r-lg)}
+.dd li{margin:7px 0;line-height:1.5;font-size:14px}
+pre.code{margin:0;padding:20px 22px;border-radius:22px;background:var(--inset);border:1px solid var(--line);font-size:12px;line-height:1.55;overflow:hidden;white-space:pre;color:var(--text);font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+.spec-card{border-radius:var(--r-xl);padding:28px}
+.spin{width:34px;height:34px;border-radius:50%;border:2.5px solid var(--focus);border-top-color:var(--teal);border-right-color:var(--primary);animation:sp 1s linear infinite}
+@keyframes sp{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion:reduce){.spin{animation:none}}
+</style>
+</head>
+<body>
+<div id="vp"><div id="world"></div></div>
+
+<aside id="index">
+  <header><b>Symphony Glass</b><span>Tablero de identidad visual para las próximas apps</span></header>
+  <nav id="nav"></nav>
+  <div id="hint"><kbd>Arrastra</kbd> para mover · <kbd>⌘/Ctrl + rueda</kbd> o pellizco para zoom · <kbd>0</kbd> ver todo · <kbd>1</kbd> 100% · clic en un token para copiarlo</div>
+</aside>
+<div id="zoom"><button id="zo">−</button><button id="zl">100%</button><button id="zi">+</button><button id="zf">Ver todo</button><button id="zb" title="Oculta la capa de fondo de todos los artboards">Fondos: sí</button></div>
+<div id="toast"></div>
+
+<script>
+/* ================= Tokens → <style> ================= */
+const TOKENS = document.getElementById('tokens').textContent;
+const st = document.createElement('style'); st.textContent = TOKENS; document.head.appendChild(st);
+
+/* ================= Iconos ================= */
+const IC = {
+  search:'<circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/>', disc:'<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="2.5"/>',
+  clock:'<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>', sliders:'<path d="M4 7h10M18 7h2M4 17h2M10 17h10"/><circle cx="16" cy="7" r="2"/><circle cx="8" cy="17" r="2"/>',
+  check:'<path d="M5 12.5l4.5 4.5L19 7.5"/>', warn:'<circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16.5h.01"/>',
+  burn:'<path d="M12 3c1 4 5 5 5 10a5 5 0 01-10 0c0-2 1-3 2-4 0 2 1 2 1 1 0-2-1-4 2-7z"/>', study:'<rect x="4" y="5" width="16" height="14" rx="3"/><path d="M4 10h16"/>',
+  dl:'<path d="M12 4v11M7 11l5 5 5-5M5 20h14"/>', sun:'<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M5 5l1.5 1.5M17.5 17.5L19 19M5 19l1.5-1.5M17.5 6.5L19 5"/>',
+  key:'<circle cx="8" cy="15" r="4"/><path d="M11 12l9-9M16 7l3 3"/>', play:'<path d="M7 5l12 7-12 7z"/>', info:'<circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 7.5h.01"/>'
+};
+const ic = (n,s=20)=>`<svg class="i" style="width:${s}px;height:${s}px" viewBox="0 0 24 24">${IC[n]}</svg>`;
+
+/* ================= Piezas reutilizables ================= */
+const brandPill = (w='264px')=>`<div class="brand glass-strong" style="width:${w}"><div class="ava"><img src="assets/logo.png" alt=""></div><div><b>SYMPHONY</b><span>MEDIA EXPORT</span></div></div>`;
+const sw = (name,cssVar,extra='')=>`<div class="sw" data-copy="${cssVar}"><i style="background:${extra||`var(${cssVar})`}"></i><div><b>${name}</b><small class="hexv" data-v="${cssVar}">${cssVar}</small></div></div>`;
+const pills = `<span class="v-pill tone-blue">Anonimizado</span><span class="v-pill tone-violet">CT</span><span class="v-pill tone-green">Grabado</span><span class="v-pill tone-amber">En cola</span><span class="v-pill tone-slate">Archivo</span><span class="v-pill tone-bad">Error</span>`;
+
+/* ================= Artboards ================= */
+const AB = [];
+const add = (o)=>AB.push(o);
+
+/* --- 1. Portada --- */
+add({id:'portada',g:'Marca',t:'Portada',x:0,y:0,w:1400,h:760,th:'dark',html:()=>`
+ <div class="pad" style="display:grid;grid-template-columns:1.1fr .9fr;gap:48px;height:100%;align-items:center">
+  <div>
+   <div class="eyebrow">Guía de identidad · v2.0</div>
+   <h1 style="font-size:68px;line-height:1.02;letter-spacing:-.025em;margin:18px 0 20px">Symphony<br>Glass</h1>
+   <p class="muted" style="font-size:19px;line-height:1.55;max-width:560px">Lenguaje visual de vidrio translúcido, formas redondeadas y un único azul de acción. Nació en <b style="color:var(--text)">Symphony Media Export</b> y sirve de base para las próximas apps.</p>
+   <div class="row" style="margin-top:34px"><span class="v-btn v-btn-primary">${ic('play',16)} Empezar una app nueva</span><span class="v-btn v-btn-ghost">Ver tokens CSS</span></div>
+  </div>
+  <div class="glass" style="border-radius:var(--r-xl);padding:40px;display:flex;flex-direction:column;align-items:center;text-align:center">
+   <img src="assets/SYMPHONYPNG.png" style="width:210px;height:auto" alt="">
+   <div class="row" style="margin-top:26px;gap:10px;justify-content:center">
+     <span class="v-pill" style="background:var(--brand-navy);color:#fff">Navy</span><span class="v-pill" style="background:var(--brand-teal);color:#fff">Teal</span><span class="v-pill" style="background:var(--brand-red);color:#fff">Rojo</span>
+   </div>
+   <p class="t-cap" style="margin-top:16px">Los colores del logo viven en la marca; la interfaz usa azul + neutros.</p>
+  </div>
+ </div>`});
+
+/* --- 2. Principios --- */
+add({id:'principios',g:'Marca',t:'Principios',x:1520,y:0,w:1100,h:760,th:'light',html:()=>`
+ <div class="pad">
+  <div class="eyebrow">Principios</div><h2 class="t-display" style="margin:10px 0 28px">Seis reglas para mantener la identidad</h2>
+  <div class="grid" style="grid-template-columns:1fr 1fr">
+   ${[['Vidrio con profundidad','Toda superficie es translúcida (--glass) con desenfoque de 30 px sobre un fondo con orbes y arcos.'],
+      ['Todo redondeado','Controles en píldora (999), tarjetas 20–24, paneles y modales 32. Nunca esquinas rectas.'],
+      ['Un solo azul de acción','--primary es para la acción principal, foco y selección. El resto es neutro o estado.'],
+      ['Borde fino + brillo','1 px de --line y un highlight superior (--edge). Sin sombras duras ni bordes gruesos.'],
+      ['Dos niveles de texto','--text para contenido, --muted para apoyo. Los estados usan sus tonos (pills), no otro gris.'],
+      ['Movimiento breve','120–350 ms, ease. Escala .97 al presionar. Respetar prefers-reduced-motion.']].map(([a,b],i)=>`
+     <div class="glass card-note"><div class="eyebrow" style="letter-spacing:.2em">0${i+1}</div><h3 class="t-head" style="margin:8px 0 8px">${a}</h3><p class="muted t-body" style="line-height:1.55">${b}</p></div>`).join('')}
+  </div>
+ </div>`});
+
+/* --- 3. Logos --- */
+add({id:'logos',g:'Marca',t:'Logos y marca de agua',x:2740,y:0,w:1100,h:760,th:'dark',html:()=>`
+ <div class="pad">
+  <div class="eyebrow">Logos</div><h2 class="t-display" style="margin:10px 0 28px">Uso del logotipo</h2>
+  <div class="grid" style="grid-template-columns:repeat(3,1fr)">
+   <div class="glass card-note col" style="align-items:center;gap:14px"><div style="height:130px;display:grid;place-items:center"><img class="logo-halo" src="assets/logo.png" style="width:110px" alt=""></div><b>Isotipo con halo</b><span class="t-cap" style="text-align:center">Sobre fondo oscuro, con contorno blanco de 1 px.</span></div>
+   <div class="glass card-note col" style="align-items:center;gap:14px"><div style="height:130px;display:grid;place-items:center;background:#e4e4e8;border-radius:18px;width:100%"><img src="assets/logo.png" style="width:110px" alt=""></div><b>Isotipo sin halo</b><span class="t-cap" style="text-align:center">Sobre fondo claro, tal cual.</span></div>
+   <div class="glass card-note col" style="align-items:center;gap:14px"><div style="height:130px;display:grid;place-items:center"><img src="assets/logo.png" style="width:56px;filter:brightness(0) invert(1);opacity:.5" alt=""></div><b>Marca de agua</b><span class="t-cap" style="text-align:center">Monocromo al 50 % para pies y pantallas de carga.</span></div>
+  </div>
+  <div class="sec-h" style="margin-top:34px">Marcas relacionadas</div>
+  <div class="grid" style="grid-template-columns:repeat(3,1fr)">
+   <div class="glass card-note" style="background:#fff;display:grid;place-items:center;height:150px"><img src="assets/SYMPHONYPNG.png" style="height:112px" alt=""></div>
+   <div class="glass card-note" style="background:#fff;display:grid;place-items:center;height:150px"><img src="assets/MEDICARESOFTPNG.png" style="height:96px" alt=""></div>
+   <div class="glass card-note" style="background:#fff;display:grid;place-items:center;height:150px"><img src="assets/MEDIGLOBEPNG.png" style="height:112px" alt=""></div>
+  </div>
+  <p class="t-cap" style="margin-top:18px">Zona de respeto mínima: la mitad del ancho del isotipo. Tamaño mínimo 24 px.</p>
+ </div>`});
+
+/* --- 4. Color primitivos --- */
+const P = (n,h)=>sw(n,'--'+n.replace('/','-'),h);
+add({id:'color-marca',g:'Color',t:'Paleta de marca',x:0,y:900,w:1400,h:700,th:'dark',html:()=>`
+ <div class="pad"><div class="eyebrow">Color · primitivos</div><h2 class="t-display" style="margin:10px 0 30px">Logo + azul de interfaz</h2>
+ <div class="grid" style="grid-template-columns:repeat(4,1fr);gap:28px">
+  <div class="col" style="gap:10px"><div class="sec-h">Logo</div>${sw('navy','--brand-navy')}${sw('teal','--brand-teal')}${sw('rojo','--brand-red')}</div>
+  <div class="col" style="gap:10px"><div class="sec-h">Azul de interfaz</div>${sw('blue 300','--p-blue','#a9c6ff')}${sw('blue 400 · link oscuro','--teal','#8fb6ff')}${sw('blue 500 · accent oscuro','--accent','#3b82ff')}${sw('blue 600 · primary','--primary','#2f6df0')}${sw('blue 700 · primary-d','--primary-d','#2457cf')}</div>
+  <div class="col" style="gap:10px"><div class="sec-h">Neutros</div>${sw('950 · fondo oscuro','--bg','#1c1c1e')}${sw('900 · texto claro','--bg','#1b1b1f')}${sw('500 · muted claro','--bg','#5f5f68')}${sw('400 · muted oscuro','--bg','#a6a6ac')}${sw('200 · fondo claro','--bg','#e4e4e8')}${sw('100 · texto oscuro','--bg','#f4f4f5')}</div>
+  <div class="col" style="gap:10px"><div class="sec-h">Estados</div>${sw('ok oscuro','--ok','#3ddc97')}${sw('ok claro','--ok','#12804f')}${sw('error oscuro','--bad','#ff6b6b')}${sw('error claro','--bad','#c62828')}${sw('aviso oscuro','--warn','#ffb84d')}${sw('aviso claro','--warn','#a35a00')}</div>
+ </div></div>`});
+
+/* --- 5/6. Semántico --- */
+const semGroups = [
+ ['Superficies',[['bg','--bg'],['glass','--glass'],['glass-strong','--glass-strong'],['glass2','--glass2'],['inset','--inset'],['hover','--hover'],['overlay','--overlay']]],
+ ['Borde y texto',[['line','--line'],['text','--text'],['muted','--muted'],['dot-off','--dot-off']]],
+ ['Acción',[['primary','--primary'],['primary-d','--primary-d'],['accent','--accent'],['link (teal)','--teal'],['focus','--focus']]],
+ ['Estado',[['ok','--ok'],['bad','--bad'],['warn','--warn'],['bad-text','--bad-text']]],
+ ['Pills',[['blue','--p-blue-bg'],['violet','--p-violet-bg'],['green','--p-green-bg'],['amber','--p-amber-bg'],['slate','--p-slate-bg'],['bad','--p-bad-bg']]]
+];
+['dark','light'].forEach((th,i)=>add({id:'sem-'+th,g:'Color',t:'Color semántico — '+(th==='dark'?'Oscuro':'Claro'),x:1520+i*1060,y:900,w:1000,h:1180,th,html:()=>`
+ <div class="pad" style="padding:48px"><div class="eyebrow">Color · semántico</div><h2 class="t-display" style="margin:10px 0 24px">Tema ${th==='dark'?'oscuro (por defecto)':'claro'}</h2>
+ ${semGroups.map(([g,l])=>`<div class="sec-h" style="margin-top:18px">${g}</div><div class="grid" style="grid-template-columns:repeat(3,1fr);gap:10px">${l.map(([n,v])=>sw(n,v)).join('')}</div>`).join('')}</div>`}));
+</script>
+<script>
+/* --- 7. Tipografía --- */
+add({id:'tipo',g:'Fundamentos',t:'Tipografía',x:0,y:2220,w:1400,h:760,th:'dark',html:()=>`
+ <div class="pad" style="display:grid;grid-template-columns:1fr 1fr;gap:40px">
+  <div><div class="eyebrow">Tipografía</div><h2 class="t-display" style="margin:10px 0 14px">SF Pro Rounded</h2>
+   <p class="muted t-lg" style="line-height:1.55;margin-bottom:22px">Pila: <span class="mono" data-copy='ui-rounded, "SF Pro Rounded", -apple-system, "SF Pro Text", "Segoe UI", Inter, sans-serif'>ui-rounded, "SF Pro Rounded", -apple-system, "Segoe UI", Inter</span>. Redondeada para casar con las píldoras; en Windows cae a Segoe UI / Inter.</p>
+   <div class="glass" style="border-radius:var(--r-xl);padding:30px"><div style="font-size:96px;font-weight:700;line-height:1;letter-spacing:-.03em">Aa</div><div class="muted" style="margin-top:14px;font-size:15px;letter-spacing:.04em">ABCDEFGHIJKLMNÑOPQRSTUVWXYZ<br>abcdefghijklmnñopqrstuvwxyz 0123456789</div>
+   <div class="row" style="margin-top:16px;gap:22px"><span style="font-weight:400">Regular</span><span style="font-weight:500">Medium</span><span style="font-weight:600">Semibold</span><span style="font-weight:700">Bold</span></div></div></div>
+  <div class="glass" style="border-radius:var(--r-xl);padding:12px 28px">
+   ${[['Display','30 / 700 · −0.01em','Exportar estudios','t-display'],['Título de página','24 / 700','Historial de grabaciones','t-page'],['Encabezado','20 / 700','Ajustes de etiqueta','t-head'],['Cuerpo grande','15 / 500','Buscar paciente o ID','t-lg'],['Cuerpo','14 / 400','Juan Pérez · TC de tórax con contraste','t-body'],['Apoyo','13 / 500 · muted','Última sincronización hace 2 min','t-cap'],['Etiqueta','12 / 600 · caps +7%','Modalidad','t-label'],['Eyebrow','11 / 700 · caps +30%','Tema oscuro','eyebrow']].map(([n,m,s,c])=>`<div style="display:grid;grid-template-columns:150px 1fr;gap:16px;align-items:center;padding:15px 0;border-bottom:1px solid var(--line)"><div><div style="font-size:13px;font-weight:600">${n}</div><div class="t-cap" style="font-size:11.5px">${m}</div></div><div class="${c}">${s}</div></div>`).join('')}
+  </div>
+ </div>`});
+
+/* --- 8. Radios y espaciado --- */
+add({id:'radios',g:'Fundamentos',t:'Radios, espaciado y tamaños',x:1520,y:2220,w:1000,h:760,th:'light',html:()=>`
+ <div class="pad" style="padding:48px"><div class="eyebrow">Forma</div><h2 class="t-display" style="margin:10px 0 24px">Radios, espaciado, tamaños</h2>
+  <div class="sec-h">Radios</div>
+  <div class="row" style="gap:18px;margin-bottom:26px">${[['sm','12'],['md','20'],['lg','24'],['xl','32'],['full','999']].map(([n,v])=>`<div class="col" style="align-items:center;gap:8px" data-copy="--r-${n}"><div class="glass" style="width:112px;height:84px;border-radius:${v}px"></div><b style="font-size:13px">${n}</b><span class="t-cap">${v}${n==='full'?' · píldora':'px'}</span></div>`).join('')}</div>
+  <div class="sec-h">Espaciado (base 4)</div>
+  <div class="row" style="gap:18px;align-items:flex-end;margin-bottom:26px">${[4,8,12,16,24,32].map(v=>`<div class="col" style="align-items:center;gap:8px"><div style="width:${v}px;height:${v}px;background:var(--primary);border-radius:4px"></div><span class="t-cap">${v}</span></div>`).join('')}</div>
+  <div class="sec-h">Tamaños de control</div>
+  <div class="grid" style="grid-template-columns:repeat(2,1fr)">${[['Botón / campo','48 px'],['Campo de formulario','44 px'],['Botón de icono','38 px'],['Ítem de menú','48 px'],['Barra lateral','264 px'],['Panel exterior','margen 14 px']].map(([a,b])=>`<div class="sw" style="justify-content:space-between"><b>${a}</b><span class="t-cap">${b}</span></div>`).join('')}</div>
+ </div>`});
+
+/* --- 9/10. Efectos glass --- */
+['dark','light'].forEach((th,i)=>add({id:'glass-'+th,g:'Fundamentos',t:'Glass y efectos — '+(th==='dark'?'Oscuro':'Claro'),x:2640+i*1060,y:2220,w:1000,h:760,th,html:()=>`
+ <div class="pad" style="padding:48px"><div class="eyebrow">Efectos</div><h2 class="t-display" style="margin:10px 0 24px">Capas de vidrio</h2>
+  <div class="grid" style="grid-template-columns:1fr 1fr;gap:20px">
+   <div class="glass spec-card" style="height:190px"><b>.glass</b><p class="t-cap" style="margin-top:6px">Panel principal · --glass + blur 30 + sombra 0 28 70</p></div>
+   <div class="glass-strong spec-card" style="height:190px;border-radius:var(--r-md)"><b>.glass-strong</b><p class="t-cap" style="margin-top:6px">Barra lateral, cabeceras, modales</p></div>
+   <div class="glass2" style="height:96px;border-radius:var(--r-lg);padding:22px"><b>.glass2</b> <span class="t-cap">Controles sobre vidrio</span></div>
+   <div style="height:96px;border-radius:var(--r-lg);padding:22px;background:linear-gradient(180deg,color-mix(in srgb,var(--primary) 82%,#fff),var(--primary));color:#fff;box-shadow:inset 0 1px 0 rgba(255,255,255,.3),0 8px 22px color-mix(in srgb,var(--primary) 40%,transparent)"><b>Glow primario</b></div>
+   <div style="height:70px;border-radius:999px;padding:0 26px;display:flex;align-items:center;box-shadow:0 0 0 3px var(--focus);border:1px solid var(--teal);background:var(--glass2)"><b>Foco · anillo 3 px</b></div>
+   <div style="height:70px;border-radius:var(--r-lg);padding:0 26px;display:flex;align-items:center;background:var(--glass2);background-image:var(--sheen);border:1px solid var(--line);box-shadow:var(--edge)"><b>Hover · sheen</b></div>
+  </div>
+  <p class="t-cap" style="margin-top:20px;max-width:620px;line-height:1.55">Receta: <span class="mono">background: var(--glass); border: 1px solid var(--line); box-shadow: var(--edge), var(--panel-shadow); backdrop-filter: var(--blur);</span> — el fondo debe tener orbes/arcos detrás o el desenfoque no se aprecia.</p>
+ </div>`}));
+
+/* --- 11/12. Componentes --- */
+['dark','light'].forEach((th,i)=>add({id:'comp-'+th,g:'Componentes',t:'Componentes — '+(th==='dark'?'Oscuro':'Claro'),x:i*1480,y:3120,w:1400,h:1120,th,html:()=>`
+ <div class="pad" style="padding:48px"><div class="eyebrow">Componentes</div><h2 class="t-display" style="margin:10px 0 26px">Biblioteca base</h2>
+ <div class="grid" style="grid-template-columns:1fr 1fr;gap:34px">
+  <div class="col" style="gap:26px">
+   <div><div class="sec-h">Botones</div><div class="row"><span class="v-btn v-btn-primary">${ic('dl',18)} Exportar</span><span class="v-btn v-btn-ghost">Cancelar</span><span class="v-btn v-btn-danger">Eliminar</span><span class="v-btn v-btn-primary dis">Deshabilitado</span></div></div>
+   <div><div class="sec-h">Pills de estado</div><div class="row" style="gap:8px">${pills}</div></div>
+   <div><div class="sec-h">Campos</div><div class="col" style="gap:12px"><div class="v-field">${ic('search')}<input placeholder="Buscar paciente, ID o descripción…"></div><div class="v-field focus">${ic('search')}<input value="Pérez, Juan"></div></div></div>
+   <div><div class="sec-h">Botones de icono · estado de grabación</div><div class="row" style="gap:12px"><span class="v-icon">${ic('disc',18)}</span><span class="v-icon hov">${ic('disc',18)}</span><span class="v-icon v-rec-busy">${ic('burn',18)}</span><span class="v-icon v-rec-done">${ic('check',18)}</span><span class="v-icon v-rec-failed">${ic('warn',18)}</span></div><div class="t-cap" style="margin-top:8px">Reposo · hover · grabando · listo · error</div></div>
+   <div><div class="sec-h">Toggle y selector segmentado</div><div class="row" style="gap:22px"><span class="tog"></span><span class="tog on"></span><div class="seg"><span class="on">Oscuro</span><span>Claro</span></div></div></div>
+  </div>
+  <div class="col" style="gap:26px">
+   <div><div class="sec-h">Panel glass con acción</div><div class="glass" style="border-radius:var(--r-xl);padding:28px"><div class="eyebrow" style="letter-spacing:.2em">Estudio listo</div><h3 class="t-head" style="margin:8px 0 8px">Exportar a disco</h3><p class="muted t-body" style="line-height:1.55;margin-bottom:18px">Superficie translúcida con desenfoque, borde de 1 px y sombra suave. Base de toda tarjeta.</p><span class="v-btn v-btn-primary">Grabar disco</span></div></div>
+   <div><div class="sec-h">Navegación</div><div class="col" style="gap:14px;width:264px">${brandPill()}<div class="glass-strong" style="border-radius:32px;padding:14px 12px;display:flex;flex-direction:column;gap:4px"><div class="nav-i on">${ic('study',22)} Estudios <span class="bdg">3</span></div><div class="nav-i">${ic('clock',22)} Historial</div><div class="nav-i">${ic('sliders',22)} Ajustes</div></div></div></div>
+   <div><div class="sec-h">Alertas</div><div class="col" style="gap:10px"><div class="v-alert">${ic('warn',20)} No se pudo conectar con el grabador Epson. Revisa el cable USB.</div><div class="v-ok">${ic('check',20)} Licencia válida hasta 31/12/2027.</div></div></div>
+   <div><div class="sec-h">Indicadores</div><div class="row" style="gap:20px"><span class="row" style="gap:8px"><i class="dot ok"></i><span class="t-body">Conectado</span></span><span class="row" style="gap:8px"><i class="dot bad"></i><span class="t-body">Sin conexión</span></span><span class="row" style="gap:10px"><div class="spin" style="width:20px;height:20px;border-width:2px"></div><span class="t-body">Cargando</span></span></div></div>
+  </div>
+ </div></div>`}));
+</script>
+<script>
+/* --- 13/14. Pantalla Estudios --- */
+const rows = [['Pérez, Juan','CT','08/04/2026','TC de tórax con contraste','green','Grabado'],['Gómez, Ana','MR','08/04/2026','RM cerebro simple','amber','En cola'],['Rojas, Luis','CR','07/04/2026','Radiografía de rodilla','blue','Anonimizado'],['Silva, Marta','US','07/04/2026','Ecografía abdominal','slate','Archivo'],['Díaz, Pablo','CT','06/04/2026','TC de abdomen','bad','Error'],['Núñez, Rosa','MR','06/04/2026','RM columna lumbar','green','Grabado']];
+const tonemod = {CT:'violet',MR:'blue',CR:'slate',US:'green'};
+const recIcon = ['v-rec-done','v-rec-busy','','','v-rec-failed','v-rec-done'];
+const recGl = ['check','burn','disc','disc','warn','check'];
+const sidebar = (active)=>`<div style="width:264px;display:flex;flex-direction:column;gap:14px;margin:14px 0 14px 14px;height:calc(100% - 28px)">${brandPill()}
+ <div class="glass-strong" style="flex:1;border-radius:32px;padding:16px 12px 14px;display:flex;flex-direction:column"><div class="t-cap" style="padding:6px 12px 10px">Menú</div>
+  <div class="nav-i ${active==='est'?'on':''}">${ic('study',22)} Estudios <span class="bdg">${rows.length}</span></div><div class="nav-i ${active==='his'?'on':''}">${ic('clock',22)} Historial</div><div class="nav-i ${active==='aju'?'on':''}">${ic('sliders',22)} Ajustes</div>
+  <div style="flex:1"></div><div style="height:1px;background:var(--line);margin:10px 8px"></div>
+  <div class="nav-i">${ic('key',22)} Licencia <i class="dot ok" style="margin-left:auto"></i></div><div class="nav-i">${ic('sun',22)} Tema</div><div class="t-cap" style="padding:8px 12px 0">v2.0.0</div></div></div>`;
+['dark','light'].forEach((th,i)=>add({id:'pantalla-'+th,g:'Pantallas',t:'Pantalla Estudios — '+(th==='dark'?'Oscuro':'Claro'),x:i*1400,y:4400,w:1360,h:820,th,html:()=>`
+ <div style="display:flex;height:100%">${sidebar('est')}
+  <div style="flex:1;min-width:0;padding:26px 32px;display:flex;flex-direction:column;gap:16px">
+   <div class="row" style="gap:10px"><h1 class="t-page" style="margin-right:6px">Estudios</h1><div class="v-field" style="flex:1;min-width:200px">${ic('search')}<input placeholder="Buscar por paciente, ID o descripción…"></div><div class="v-field" style="height:48px;width:150px;padding:0 16px;font-size:14px">08/04/2026</div><span class="v-btn v-btn-primary">Buscar</span></div>
+   <div class="glass" style="flex:1;border-radius:32px;overflow:hidden;display:flex;flex-direction:column">
+    <table class="v-table"><thead><tr><th>Paciente</th><th>Mod.</th><th>Fecha</th><th>Descripción</th><th>Estado</th><th style="text-align:center">Grabar</th></tr></thead><tbody>
+    ${rows.map((r,k)=>`<tr class="${k===1?'hl':''}"><td class="strong">${r[0]}</td><td><span class="v-pill tone-${tonemod[r[1]]}">${r[1]}</span></td><td class="muted">${r[2]}</td><td>${r[3]}</td><td><span class="v-pill tone-${r[4]}">${r[5]}</span></td><td style="text-align:center"><span class="v-icon ${recIcon[k]}">${ic(recGl[k],18)}</span></td></tr>`).join('')}</tbody></table>
+   </div>
+   <div class="row" style="gap:8px;color:var(--muted);font-size:13px"><i class="dot ok"></i>Servidor conectado<i class="dot ok" style="margin-left:10px"></i>Grabador listo<span style="margin-left:auto">${rows.length} estudios</span></div>
+  </div></div>`}));
+
+/* --- 15. Ajustes --- */
+add({id:'ajustes',g:'Pantallas',t:'Ajustes (formulario)',x:0,y:5380,w:1360,h:760,th:'dark',html:()=>`
+ <div style="display:flex;height:100%">${sidebar('aju')}
+  <div style="flex:1;padding:26px 32px"><div class="glass" style="height:100%;border-radius:32px;display:flex;overflow:hidden">
+   <div style="width:210px;padding:14px 10px;border-right:1px solid var(--line);background:var(--inset);display:flex;flex-direction:column;gap:4px"><div class="nav-i on" style="height:44px">Conexión</div><div class="nav-i" style="height:44px">Etiqueta</div><div class="nav-i" style="height:44px">Apariencia</div><div class="nav-i" style="height:44px">Acerca de</div></div>
+   <div style="flex:1;padding:28px 32px;display:flex;flex-direction:column;gap:20px"><h3 class="t-head">Conexión</h3>
+    <div class="grid" style="grid-template-columns:1fr 1fr;gap:16px">${[['Servidor','http://192.168.1.20:8042'],['Usuario','admin'],['Grabador','Epson PP-100N'],['Carpeta temporal','C:\\\\Symphony\\\\tmp']].map(([a,b])=>`<div class="col" style="gap:6px"><span class="t-cap" style="font-weight:600">${a}</span><div class="v-field" style="height:44px;color:var(--text);font-size:15px">${b}</div></div>`).join('')}</div>
+    <div class="row"><span class="v-btn v-btn-ghost">Probar conexión</span><span class="row" style="gap:6px;color:var(--ok);font-size:14px"><i class="dot ok"></i>Conectado</span></div>
+    <div style="padding:18px;border:1px solid var(--line);border-radius:24px;background:var(--inset);display:flex;flex-direction:column;gap:14px"><div class="sec-h" style="margin:0">Tema</div><div class="seg" style="align-self:flex-start"><span class="on">Oscuro</span><span>Claro</span></div></div>
+    <div style="flex:1"></div><div class="row" style="justify-content:flex-end;gap:14px;padding-top:16px;border-top:1px solid var(--line)"><span class="v-btn v-btn-ghost">Descartar</span><span class="v-btn v-btn-primary">Guardar cambios</span></div>
+   </div></div></div></div>`});
+
+/* --- 16. Modal licencia --- */
+add({id:'modal',g:'Pantallas',t:'Modal (licencia)',x:1480,y:5380,w:760,h:760,th:'light',html:()=>`
+ <div style="position:absolute;inset:0;background:var(--overlay);backdrop-filter:blur(10px);display:grid;place-items:center">
+  <div class="glass-strong" style="width:540px;border-radius:32px;padding:30px">
+   <div class="row" style="gap:12px;margin-bottom:22px"><h3 class="t-head">Licencia</h3><span class="v-pill tone-green" style="margin-left:auto">Activa</span></div>
+   <div class="col" style="gap:8px;margin-bottom:18px"><span class="t-cap" style="font-weight:600">ID de equipo</span><div class="row" style="gap:8px;flex-wrap:nowrap"><div class="v-field mono" style="flex:1;height:42px;font-size:13px;color:var(--teal)">A91F-33C2-7B10-DE48</div><span class="v-btn v-btn-ghost" style="height:44px;padding:0 20px;font-size:14px">Copiar</span></div></div>
+   <div class="col" style="gap:8px"><span class="t-cap" style="font-weight:600">Clave de licencia</span><div style="height:96px;border-radius:22px;background:var(--glass2);border:1px solid var(--line);box-shadow:var(--edge);padding:12px;font-size:12px;color:var(--muted)" class="mono">Pega aquí la clave…</div></div>
+   <div class="v-alert" style="margin-top:16px;border-radius:12px;padding:10px 14px;font-size:13px">La clave no corresponde a este equipo.</div>
+   <div class="row" style="justify-content:flex-end;gap:10px;margin-top:22px;padding-top:18px;border-top:1px solid var(--line)"><span class="v-btn v-btn-ghost" style="height:44px;font-size:14px">Cerrar</span><span class="v-btn v-btn-primary" style="height:44px;font-size:14px">Activar</span></div>
+  </div></div>`});
+
+/* --- 17. Splash --- */
+add({id:'splash',bg:'splash',g:'Pantallas',t:'Pantalla de inicio',x:2360,y:5380,w:640,h:760,th:'dark',html:()=>`
+ <div style="height:100%;display:grid;place-items:center"><div class="glass" style="width:380px;border-radius:28px;padding:40px 32px 34px;display:flex;flex-direction:column;align-items:center;text-align:center">
+  <img class="logo-halo" src="assets/logo.png" style="width:96px" alt=""><h1 style="margin:22px 0 0;font-size:30px;letter-spacing:.08em;line-height:1">SYMPHONY</h1><p class="muted" style="margin:8px 0 0;font-size:12px;font-weight:600;letter-spacing:.3em">MEDIA EXPORT</p>
+  <div class="spin" style="margin:32px 0 14px"></div><p class="muted" style="font-size:14px;font-weight:500">Iniciando servicios…</p></div>
+  <p class="row muted" style="position:absolute;bottom:30px;left:0;right:0;justify-content:center;font-size:12px;letter-spacing:.06em;gap:10px"><img src="assets/logo.png" style="width:22px;filter:brightness(0) invert(1);opacity:.5" alt=""> Symphony · v2.0.0</p></div>`});
+
+/* --- 17b. Fondos (componentes independientes) --- */
+const BGCSS = `/* Componentes de fondo: aplica la clase al contenedor raíz de la pantalla */
+.bgc{position:relative;overflow:hidden;isolation:isolate;background:var(--bg)}
+.bgc::before,.bgc::after{content:"";position:absolute;border-radius:50%;z-index:-1;pointer-events:none}
+/* .bgc-app: app principal — 2 arcos con borde fino */
+.bgc-app::before{width:68%;aspect-ratio:1;left:-29%;top:-33%;background:var(--arc-fill);border:1.5px solid var(--arc)}
+.bgc-app::after{width:76%;aspect-ratio:1;right:-36%;bottom:-71%;background:var(--arc-fill);border:1.5px solid var(--arc)}
+/* .bgc-splash: pantalla de inicio — 2 orbes grises desenfocados */
+.bgc-splash::before{width:39%;aspect-ratio:1;left:-8%;top:-16%;background:var(--orb1);opacity:var(--orb1-op);filter:blur(90px)}
+.bgc-splash::after{width:35%;aspect-ratio:1;right:-7%;bottom:-18%;background:var(--orb2);opacity:var(--orb2-op);filter:blur(90px)}
+/* .bgc-flat: solo color */
+.bgc-flat::before,.bgc-flat::after{display:none}`;
+const bgTile = (kind,th)=>`<div class="bgc bgc-${kind} th-${th}" style="height:250px;border-radius:24px;box-shadow:0 0 0 1px var(--line);display:grid;place-items:center"><div class="glass" style="width:62%;border-radius:var(--r-lg);padding:20px 22px"><b style="font-size:15px">Panel glass</b><p class="t-cap" style="margin-top:4px">sobre fondo ${kind}</p></div></div>`;
+add({id:'fondos',g:'Fondos',t:'Fondos · especificación y CSS',x:3000,y:3120,w:1500,h:1120,th:'dark',bg:'flat',html:()=>`
+ <div class="pad" style="padding:48px"><div class="eyebrow">Fondos</div><h2 class="t-display" style="margin:10px 0 10px">Fondos independientes</h2>
+ <p class="muted t-body" style="max-width:780px;line-height:1.55;margin-bottom:26px">Cada fondo es una clase aparte (<span class="mono">.bgc-app</span>, <span class="mono">.bgc-splash</span>, <span class="mono">.bgc-flat</span>) que se aplica al contenedor raíz. Son los mismos del código original: la app usa arcos de borde fino; el orbe gris desenfocado solo aparece en la pantalla de inicio. No llevan color de acento.</p>
+ <div class="grid" style="grid-template-columns:repeat(3,1fr);gap:22px">
+  ${[['app','Fondo de app','2 arcos con borde fino. Estudios, Historial, Ajustes.'],['splash','Fondo de inicio','2 orbes grises desenfocados. Splash y arranque.'],['flat','Fondo plano','Solo --bg. Modales, ventanas auxiliares.']].map(([k,n,d])=>`
+   <div class="col" style="gap:12px"><div><b class="t-lg" data-copy="bgc-${k}">.bgc-${k}</b><div class="t-cap" style="margin-top:2px">${n} · ${d}</div></div>${bgTile(k,'dark')}${bgTile(k,'light')}</div>`).join('')}
+ </div>
+ <div class="sec-h" style="margin-top:30px">CSS del componente</div>
+ <pre class="code" data-copy="${BGCSS.replace(/"/g,'&quot;')}" style="font-size:11.5px">${BGCSS.replace(/</g,'&lt;')}</pre>
+ </div>`});
+
+/* --- 17c. Fondos como PIEZAS sueltas (1440×900, sin contenido) --- */
+[['app','dark',4640,3120],['app','light',6140,3120],['splash','dark',4640,4120],['splash','light',6140,4120]].forEach(([k,th,x,y])=>
+ add({id:`fondo-${k}-${th}`,piece:true,bg:k,g:'Fondos',t:`Fondo ${k==='app'?'de app':'de inicio'} — ${th==='dark'?'Oscuro':'Claro'}`,x,y,w:1440,h:900,th,html:()=>''}));
+
+/* --- 18. Tokens CSS --- */
+const asRoot = TOKENS.replace('.th-dark','/* tema oscuro (por defecto) */\n:root').replace('.th-light','/* tema claro: <html data-theme="light"> */\n:root[data-theme="light"]') + '\n' + BGCSS;
+add({id:'tokens',g:'Guía de uso',t:'Tokens CSS · copiar a otra app',x:0,y:6300,w:1500,h:1400,th:'dark',html:()=>`
+ <div class="pad" style="padding:48px"><div class="row" style="gap:16px"><div><div class="eyebrow">Para otras apps</div><h2 class="t-display" style="margin:10px 0 0">Tokens CSS</h2></div><span class="v-btn v-btn-primary" style="margin-left:auto" data-copy-all>${ic('dl',18)} Copiar todo</span></div>
+ <p class="muted t-body" style="margin:12px 0 18px;max-width:760px;line-height:1.55">Pega este bloque en el CSS global de la app. Cambia de tema con <span class="mono">document.documentElement.dataset.theme = "light" | "dark"</span> (ver <span class="mono">apps/ap1-publisher/frontend/src/theme.ts</span>).</p>
+ <pre class="code" id="tokpre" style="height:1090px">${asRoot.replace(/</g,'&lt;')}</pre></div>`});
+
+/* --- 19. Checklist --- */
+add({id:'checklist',g:'Guía de uso',t:'Checklist y qué evitar',x:1620,y:6300,w:1100,h:1280,th:'light',html:()=>`
+ <div class="pad" style="padding:48px"><div class="eyebrow">Guía de uso</div><h2 class="t-display" style="margin:10px 0 24px">Empezar otra app con esta identidad</h2>
+  <div class="glass card-note"><div class="sec-h">Checklist</div><ol class="dd" style="margin:0;padding-left:20px"><li>Copiar el bloque de tokens y la pila tipográfica.</li><li>Fondo: <span class="mono">var(--bg)</span> con 2 arcos y 1–2 orbes desenfocados detrás.</li><li>Contenedores con la receta glass (borde 1 px + <span class="mono">--edge</span> + blur 30).</li><li>Controles en píldora de 48 px; icon-buttons de 38 px redondos.</li><li>Una sola acción primaria por vista (<span class="mono">.v-btn-primary</span>).</li><li>Estados con pills y colores <span class="mono">--ok / --warn / --bad</span>, nunca con texto solo.</li><li>Probar ambos temas y contraste del texto <span class="mono">--muted</span> sobre vidrio.</li><li>Barra de título integrada en macOS; tema de barra nativa en Windows.</li></ol></div>
+  <div class="grid" style="grid-template-columns:1fr 1fr;margin-top:18px;gap:18px">
+   <div class="glass card-note"><div class="sec-h" style="color:var(--ok)">Sí</div><ul class="dd" style="margin:0;padding-left:18px"><li>Vidrio sobre fondo con profundidad.</li><li>Un azul, muchos neutros.</li><li>Redondeo generoso y consistente.</li><li>Transiciones de 120–350 ms.</li></ul></div>
+   <div class="glass card-note"><div class="sec-h" style="color:var(--bad)">No</div><ul class="dd" style="margin:0;padding-left:18px"><li>Glass sobre fondo plano (no se ve el efecto).</li><li>Esquinas rectas o radios mezclados.</li><li>Barras de color laterales como acento.</li><li>Sombras duras o bordes gruesos.</li><li>Más de un botón primario por vista.</li></ul></div>
+  </div>
+ </div>`});
+</script>
+<script>
+/* ================= Render ================= */
+const world = document.getElementById('world'), vp = document.getElementById('vp');
+AB.forEach(a=>{
+  const w = document.createElement('div'); w.className='ab-wrap'; w.id='ab-'+a.id; w.style.cssText=`left:${a.x}px;top:${a.y}px;width:${a.w}px;height:${a.h}px`;
+  w.innerHTML = `<div class="ab-title">${a.t}<small>${a.w}×${a.h} · ${a.th==='dark'?'oscuro':'claro'}</small></div><div class="ab th-${a.th}"><div class="bg-piece bgc bgc-${a.bg||'app'}" data-piece="Fondo ${a.bg||'app'}"></div><div class="ab-content">${a.html()}</div></div>`;
+  world.appendChild(w); a.el=w;
+});
+/* valores reales de los tokens */
+document.querySelectorAll('.hexv').forEach(el=>{ const ab=el.closest('.ab'); const v=getComputedStyle(ab).getPropertyValue(el.dataset.v).trim(); if(v&&!v.startsWith('radial')&&!v.startsWith('inset')) el.textContent=el.dataset.v+' · '+v; });
+document.querySelectorAll('.sw[data-copy] i[style*="#"]').forEach(i=>{ const m=i.style.background; });
+
+/* índice */
+const nav=document.getElementById('nav'); let lastG='';
+AB.forEach(a=>{ if(a.g!==lastG){ nav.insertAdjacentHTML('beforeend',`<h6>${a.g}</h6>`); lastG=a.g; } const l=document.createElement('a'); l.textContent=a.t; l.onclick=()=>focusAB(a); a.link=l; nav.appendChild(l); });
+
+/* ================= Motor pan / zoom ================= */
+let tx=0,ty=0,s=1; const zl=document.getElementById('zl');
+const apply=()=>{ world.style.transform=`translate(${tx}px,${ty}px) scale(${s})`; vp.style.backgroundPosition=`${tx}px ${ty}px`; vp.style.backgroundSize=`${24*s}px ${24*s}px`; zl.textContent=Math.round(s*100)+'%'; };
+const view=()=>({x:268,y:0,w:innerWidth-268,h:innerHeight});
+function fitBox(x,y,w,h,pad=70){ const v=view(); s=Math.min((v.w-pad*2)/w,(v.h-pad*2)/h,1.4); tx=v.x+(v.w-w*s)/2-x*s; ty=v.y+(v.h-h*s)/2-y*s; apply(); }
+function fitAll(){ const xs=Math.min(...AB.map(a=>a.x)), ys=Math.min(...AB.map(a=>a.y))-40, xe=Math.max(...AB.map(a=>a.x+a.w)), ye=Math.max(...AB.map(a=>a.y+a.h)); fitBox(xs,ys,xe-xs,ye-ys,40); AB.forEach(a=>a.link.classList.remove('on')); }
+function focusAB(a){ fitBox(a.x,a.y-40,a.w,a.h+40); AB.forEach(b=>b.link.classList.toggle('on',b===a)); }
+function zoomAt(f,cx,cy){ const ns=Math.min(4,Math.max(.04,s*f)); tx=cx-(cx-tx)*(ns/s); ty=cy-(cy-ty)*(ns/s); s=ns; apply(); }
+vp.addEventListener('wheel',e=>{ e.preventDefault(); if(e.ctrlKey||e.metaKey){ zoomAt(Math.exp(-e.deltaY*0.01),e.clientX,e.clientY); } else { tx-=e.deltaX; ty-=e.deltaY; apply(); } },{passive:false});
+let drag=null,moved=0;
+vp.addEventListener('pointerdown',e=>{ if(e.target.closest('input,select,textarea')) return; drag={x:e.clientX,y:e.clientY,tx,ty}; moved=0; vp.classList.add('drag'); vp.setPointerCapture(e.pointerId); });
+vp.addEventListener('pointermove',e=>{ if(!drag) return; const dx=e.clientX-drag.x, dy=e.clientY-drag.y; moved=Math.max(moved,Math.abs(dx)+Math.abs(dy)); tx=drag.tx+dx; ty=drag.ty+dy; apply(); });
+vp.addEventListener('pointerup',e=>{ drag=null; vp.classList.remove('drag'); });
+document.getElementById('zi').onclick=()=>zoomAt(1.25,innerWidth/2+126,innerHeight/2);
+document.getElementById('zo').onclick=()=>zoomAt(.8,innerWidth/2+126,innerHeight/2);
+document.getElementById('zf').onclick=fitAll;
+document.getElementById('zb').onclick=e=>{ const off=world.classList.toggle('nobg'); e.target.textContent='Fondos: '+(off?'no':'sí'); };
+zl.onclick=()=>{ const f=1/s; zoomAt(f,innerWidth/2+126,innerHeight/2); };
+addEventListener('keydown',e=>{ if(e.target.matches('input')) return; if(e.key==='0') fitAll(); if(e.key==='1') zl.click(); if(e.key==='+'||e.key==='=') document.getElementById('zi').click(); if(e.key==='-') document.getElementById('zo').click(); });
+addEventListener('resize',apply);
+/* copiar token */
+const toast=document.getElementById('toast'); const say=t=>{ toast.textContent=t; toast.classList.add('on'); clearTimeout(say.t); say.t=setTimeout(()=>toast.classList.remove('on'),1400); };
+vp.addEventListener('click',e=>{ if(moved>4) return; const c=e.target.closest('[data-copy]'); if(c){ navigator.clipboard?.writeText(c.dataset.copy).then(()=>say('Copiado: '+c.dataset.copy.slice(0,60))); return; } if(e.target.closest('[data-copy-all]')){ navigator.clipboard?.writeText(asRoot).then(()=>say('Tokens CSS copiados')); } });
+document.querySelectorAll('[data-copy-all]').forEach(b=>b.addEventListener('click',()=>navigator.clipboard?.writeText(asRoot).then(()=>say('Tokens CSS copiados'))));
+fitAll();
+</script>
+</body>
+</html>

@@ -18,6 +18,7 @@ import (
 
 	"github.com/local/dicom-disc-suite/apps/ap1-publisher/internal/adapters"
 	"github.com/local/dicom-disc-suite/apps/ap1-publisher/internal/config"
+	"github.com/local/dicom-disc-suite/apps/ap1-publisher/internal/discdrive"
 	"github.com/local/dicom-disc-suite/apps/ap1-publisher/internal/services"
 	"github.com/local/dicom-disc-suite/shared/models"
 	"github.com/symphonylicensemanager/go/license"
@@ -33,6 +34,7 @@ type App struct {
 	devMode          bool
 	publisher        adapters.EpsonPublisher
 	monitor          adapters.EpsonJobMonitor
+	drives           discdrive.Detector
 	builder          *services.StudyPackageBuilder
 	licenseService   *services.LicenseService
 	logger           *slog.Logger
@@ -106,13 +108,13 @@ func NewApp() (*App, error) {
 		logOutput = io.MultiWriter(os.Stdout, logFile)
 	}
 	logger := slog.New(slog.NewJSONHandler(logOutput, nil))
-	var studyRepo studyRepository = adapters.NewHttpStudyRepository(cfg.StudyAPI)
+	var studyRepo studyRepository = adapters.NewHttpStudyRepository(activeServer(cfg))
+	var drives discdrive.Detector = discdrive.System()
 	if dev {
 		studyRepo = devStudyRepository{}
+		drives = devDriveDetector{}
 	}
-	if !cfg.Epson.Enabled {
-		return nil, fmt.Errorf("TD Bridge está deshabilitado en la configuración")
-	}
+	// El robot puede estar deshabilitado: ahora hay otros destinos (unidades CD/DVD).
 	publisher := &adapters.TdBridgePublisher{
 		MonitoringFolder: cfg.Epson.MonitoringFolder,
 		StagingDirectory: cfg.Epson.StagingDirectory,
@@ -137,7 +139,7 @@ func NewApp() (*App, error) {
 		history.Close()
 		return nil, fmt.Errorf("leer historial: %w", err)
 	}
-	app := &App{cfg: cfg, configPath: cfgPath, studyRepo: studyRepo, publisher: publisher, monitor: monitor, builder: builder, licenseService: licenseService, devMode: dev, logger: logger, studies: map[string]models.Study{}, studyServerState: "No probado", history: history, jobs: jobs}
+	app := &App{cfg: cfg, configPath: cfgPath, studyRepo: studyRepo, publisher: publisher, monitor: monitor, drives: drives, builder: builder, licenseService: licenseService, devMode: dev, logger: logger, studies: map[string]models.Study{}, studyServerState: "No probado", history: history, jobs: jobs}
 	for i := range app.jobs {
 		job := app.jobs[i]
 		switch job.Status {
@@ -292,7 +294,7 @@ func (a *App) GetSystemStatus() SystemStatus {
 		tdState = "Configurado"
 	}
 	a.mu.RLock()
-	serverConfig := a.cfg.StudyAPI
+	serverConfig := activeServer(a.cfg)
 	a.mu.RUnlock()
 	address := ""
 	if serverConfig.Host != "" {
@@ -493,6 +495,9 @@ func (a *App) TestServerConnection(server config.ServerConfig) (result Connectio
 	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(server.TimeoutSeconds)*time.Second)
 	defer cancel()
 	req, _ := http.NewRequestWithContext(ctx, http.MethodGet, endpoint.String(), nil)
+	if key := strings.TrimSpace(server.APIKey); key != "" {
+		req.Header.Set(adapters.APIKeyHeader, key)
+	}
 	resp, err := (&http.Client{Timeout: time.Duration(server.TimeoutSeconds) * time.Second}).Do(req)
 	if err != nil {
 		if errors.Is(err, context.DeadlineExceeded) {
@@ -522,7 +527,13 @@ func (a *App) SearchStudies(from, to string) ([]models.Study, error) {
 		return nil, errors.New("La fecha Hasta no puede ser anterior a Desde.")
 	}
 	a.logger.Info("Searching studies", "from", from, "to", to)
-	if !a.cfg.StudyAPI.IsConfigured() {
+	a.mu.RLock()
+	mode, server := a.cfg.Mode.Active, activeServer(a.cfg)
+	a.mu.RUnlock()
+	if mode == config.ModeDICOMSCP {
+		return nil, errors.New("La búsqueda en la base local del modo DICOM SCP todavía no está disponible.")
+	}
+	if !server.IsConfigured() {
 		return nil, errors.New("Servidor de estudios no configurado")
 	}
 	a.mu.Lock()
@@ -582,7 +593,11 @@ func (a *App) CreateDiscJob(uid string) (models.DiscJob, error) {
 	study, ok := a.studies[uid]
 	labelConfig := a.cfg.DiscLabel
 	publisher := a.publisher
+	robotEnabled := a.cfg.Epson.Enabled
 	a.mu.RUnlock()
+	if !robotEnabled {
+		return models.DiscJob{}, errors.New("El robot Epson está deshabilitado. Habilítelo en Configuración › Destino.")
+	}
 	if !ok {
 		return models.DiscJob{}, fmt.Errorf("study not found; run search first")
 	}

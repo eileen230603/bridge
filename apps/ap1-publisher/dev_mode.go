@@ -10,6 +10,7 @@ import (
 
 	"github.com/local/dicom-disc-suite/apps/ap1-publisher/internal/adapters"
 	"github.com/local/dicom-disc-suite/apps/ap1-publisher/internal/config"
+	"github.com/local/dicom-disc-suite/apps/ap1-publisher/internal/discdrive"
 	"github.com/local/dicom-disc-suite/shared/models"
 )
 
@@ -126,4 +127,15 @@ func (devJobMonitor) GetStatus(_ context.Context, job models.DiscJob) (adapters.
 		return adapters.EpsonJobState{Status: models.Processing, Technical: "Processing"}, nil
 	}
 	return adapters.EpsonJobState{Status: models.QueuedForEpson, Technical: "Queued"}, nil
+}
+
+// devDriveDetector simula dos grabadoras: D: con un DVD-R virgen y E: sin disco.
+type devDriveDetector struct{}
+
+func (devDriveDetector) List(context.Context) ([]discdrive.Drive, error) {
+	return []discdrive.Drive{
+		{ID: "dev:D", Name: "ASUS SDRW-08D2S", Label: "D:", CanWriteCD: true, CanWriteDVD: true,
+			Media: discdrive.Media{Present: true, Type: "DVD-R", Kind: "DVD", Blank: true, CapacityBytes: 4_700_000_000}},
+		{ID: "dev:E", Name: "Pioneer BDR-XD08", Label: "E:", CanWriteCD: true, CanWriteDVD: true, CanWriteBD: true},
+	}, nil
 }

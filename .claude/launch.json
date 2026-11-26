@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "ap1-dev",
+      "runtimeExecutable": "bash",
+      "runtimeArgs": ["-c", "cd apps/ap1-publisher && AP1_DEV=1 wails dev"],
+      "port": 34115
+    }
+  ]
+}

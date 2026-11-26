@@ -22,7 +22,12 @@ type Config struct {
 	StudyAPI           StudyAPIConfig  `json:"studyApi"`
 	Epson              EpsonConfig     `json:"epson"`
 	DiscLabel          DiscLabelConfig `json:"discLabel"`
-	CleanupAfterHours  int             `json:"cleanupAfterHours"`
+	// Mode: modo de trabajo activo y espacios de V2 y DICOM SCP (V1 sigue en StudyAPI).
+	Mode ModeConfig `json:"mode"`
+	// Drives: destino «Unidades CD/DVD». El robot sigue en Epson (Epson.Enabled = habilitado).
+	Drives            DriveConfig      `json:"drives"`
+	PaperLabel        PaperLabelConfig `json:"paperLabel"`
+	CleanupAfterHours int              `json:"cleanupAfterHours"`
 	CleanupEnabled     bool            `json:"cleanupEnabled"`
 	LicenseKey         string          `json:"licenseKey"`
 	LicenseToken       string          `json:"licenseToken"`
@@ -36,7 +41,8 @@ type ServerConfig struct {
 	Host              string `json:"host"`
 	Port              int    `json:"port"`
 	TimeoutSeconds    int    `json:"timeoutSeconds"`
-	BaseURL           string `json:"baseUrl,omitempty"`
+	APIKey            string `json:"apiKey,omitempty"` // solo Servidor V2
+	BaseURL          string `json:"baseUrl,omitempty"`
 	GetStudiesPath    string `json:"getStudiesPath,omitempty"`
 	DownloadStudyPath string `json:"downloadStudyPath,omitempty"`
 }
@@ -139,6 +145,14 @@ func LoadBytes(b []byte, baseDir string) (Config, error) {
 	e := json.Unmarshal(b, &c)
 	if e != nil {
 		return c, e
+	}
+	var raw map[string]json.RawMessage
+	if e := json.Unmarshal(b, &raw); e != nil {
+		return c, e
+	}
+	applyDestinationDefaults(&c, raw)
+	if c.Mode.Active != ModeServerV1 && c.Mode.Active != ModeServerV2 && c.Mode.Active != ModeDICOMSCP {
+		return c, fmt.Errorf("modo de trabajo desconocido %q", c.Mode.Active)
 	}
 
 	// Aplicar valores por defecto para DiscType y Format si están vacíos en el JSON

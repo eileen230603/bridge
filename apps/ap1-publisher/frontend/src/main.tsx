@@ -15,6 +15,7 @@ import { HistoryView } from "./components/HistoryView";
 import { SettingsView } from "./components/SettingsView";
 import { Sidebar } from "./components/Sidebar";
 import { TitleBarDrag } from "./components/TitleBarDrag";
+import { ConfirmDialog } from "./components/ConfirmDialog";
 type Study = {
   studyInstanceUID: string;
   patientName: string;
@@ -81,7 +82,15 @@ function App({initialStatus, initialJobs,}: {
   const [jobs, setJobs] = React.useState<DiscJob[]>(initialJobs);
   const [historyError, setHistoryError] = React.useState("");
   const [loading, setLoading] = React.useState(false);
-  const [view, setView] = React.useState<"studies" | "history" | "settings">("studies");
+  type View = "studies" | "history" | "settings";
+  const [view, setViewRaw] = React.useState<View>("studies");
+  // Configuración avisa si hay cambios sin guardar antes de salir.
+  const [settingsDirty, setSettingsDirty] = React.useState(false);
+  const [pendingView, setPendingView] = React.useState<View | null>(null);
+  const setView = (next: View) => {
+    if (view === "settings" && next !== "settings" && settingsDirty) { setPendingView(next); return; }
+    setViewRaw(next);
+  };
   const [searched, setSearched] = React.useState(false);
   const [searchError, setSearchError] = React.useState("");
 
@@ -198,9 +207,19 @@ function App({initialStatus, initialJobs,}: {
         onLicense={() => setIsModalOpen(true)}
       />
       <LicenciaModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)}></LicenciaModal>
+      {pendingView && (
+        <ConfirmDialog
+          title="Cambios sin guardar"
+          message="Hay cambios sin guardar en Configuración. Si sale ahora, se descartan."
+          confirm="Salir sin guardar"
+          cancel="Seguir editando"
+          onCancel={() => setPendingView(null)}
+          onConfirm={() => { setSettingsDirty(false); setViewRaw(pendingView); setPendingView(null); }}
+        />
+      )}
       <main>
         {view === "settings" ? (
-          <SettingsView onBack={() => setView("studies")} onSaved={refreshStatus} />
+          <SettingsView onBack={() => setView("studies")} onSaved={refreshStatus} onDirtyChange={setSettingsDirty} />
         ) : view === "studies" ? (
           <StudiesView
             from={from}

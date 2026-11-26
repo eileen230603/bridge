@@ -51,6 +51,17 @@ func (r *HttpStudyRepository) UpdateConfig(cfg config.ServerConfig) {
 	r.client = &http.Client{Timeout: time.Duration(cfg.TimeoutSeconds) * time.Second}
 }
 
+// APIKeyHeader es la cabecera con la que Servidor V2 recibe la API Key.
+const APIKeyHeader = "X-API-Key"
+
+// authorize añade la API Key (solo Servidor V2 la tiene configurada).
+func (r *HttpStudyRepository) authorize(req *http.Request) {
+	cfg, _ := r.snapshot()
+	if key := strings.TrimSpace(cfg.APIKey); key != "" {
+		req.Header.Set(APIKeyHeader, key)
+	}
+}
+
 func (r *HttpStudyRepository) snapshot() (config.ServerConfig, *http.Client) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
@@ -66,6 +77,7 @@ func (r *HttpStudyRepository) SearchStudies(ctx context.Context, from, to time.T
 	if err != nil {
 		return nil, err
 	}
+	r.authorize(req)
 	_, client := r.snapshot()
 	resp, err := client.Do(req)
 	if err != nil {
@@ -137,6 +149,7 @@ func (r *HttpStudyRepository) RetrieveStudy(ctx context.Context, studyUID, desti
 		_ = zipFile.Close()
 		return ErrStudyDownload
 	}
+	r.authorize(req)
 	_, client := r.snapshot()
 	resp, err := client.Do(req)
 	if err != nil {
